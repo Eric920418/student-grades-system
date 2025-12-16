@@ -49,9 +49,23 @@ export async function PUT(
       );
     }
 
-    const existingGroup = await prisma.group.findUnique({
-      where: { 
+    // 先獲取當前分組的 courseId
+    const currentGroup = await prisma.group.findUnique({
+      where: { id: params.id }
+    });
+
+    if (!currentGroup) {
+      return NextResponse.json(
+        { error: '找不到分組' },
+        { status: 404 }
+      );
+    }
+
+    // 檢查同課程內是否有其他同名分組
+    const existingGroup = await prisma.group.findFirst({
+      where: {
         name: name.trim(),
+        courseId: currentGroup.courseId,
         NOT: { id: params.id }
       }
     });
