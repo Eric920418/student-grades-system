@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm prisma db push:*)"
+    ]
+  }
+}

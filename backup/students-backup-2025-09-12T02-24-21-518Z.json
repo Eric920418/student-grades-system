@@ -1,0 +1,878 @@
+{
+  "timestamp": "2025-09-12T02:24:21.518Z",
+  "totalStudents": 145,
+  "aClassCount": 80,
+  "bClassCount": 65,
+  "students": [
+    {
+      "name": "湯明翰",
+      "studentId": "1132914",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "阮明和",
+      "studentId": "1132063",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "平一咲",
+      "studentId": "1132062",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "蔡孟秦",
+      "studentId": "1132061",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "江志宏",
+      "studentId": "1132060",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "謝圳奐",
+      "studentId": "1132059",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "李忻育",
+      "studentId": "1132058",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "何秉諺",
+      "studentId": "1132057",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "黃若溦",
+      "studentId": "1132056",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "方灝鈞",
+      "studentId": "1132055",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "何庭彥",
+      "studentId": "1132054",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "黃培綸",
+      "studentId": "1132053",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "楊子樂",
+      "studentId": "1132050",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "黃聖昀",
+      "studentId": "1132049",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "馮亭茵",
+      "studentId": "1132048",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "章馨之",
+      "studentId": "1132047",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "謝獻霆",
+      "studentId": "1132046",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "劉宜婕",
+      "studentId": "1132045",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "洪萱穎",
+      "studentId": "1132044",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "陳奕佑",
+      "studentId": "1132043",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "張庭嘉",
+      "studentId": "1132042",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "安正傑",
+      "studentId": "1132041",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "何紘志",
+      "studentId": "1132040",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "林君叡",
+      "studentId": "1132038",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "任宥寧",
+      "studentId": "1132037",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "顏宥騏",
+      "studentId": "1132035",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "鄭光汶",
+      "studentId": "1132034",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "丁怡嘉",
+      "studentId": "1132033",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "賴宇婕",
+      "studentId": "1132030",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "周守亮",
+      "studentId": "1132027",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "陳晉達",
+      "studentId": "1132026",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "徐巧妮",
+      "studentId": "1132025",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "郭玉鳳",
+      "studentId": "1132022",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "詹書瑋",
+      "studentId": "1132021",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "石桓誠",
+      "studentId": "1132019",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "賴彥廷",
+      "studentId": "1132018",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "林以恩",
+      "studentId": "1132016",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "陳俊翊",
+      "studentId": "1132014",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "張佑宇",
+      "studentId": "1132012",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "蘇柏安",
+      "studentId": "1132011",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "林俞潔",
+      "studentId": "1132010",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "葉庭瑜",
+      "studentId": "1132009",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "鄭凱元",
+      "studentId": "1132008",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "余承軒",
+      "studentId": "1132006",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "鍾采瑄",
+      "studentId": "1132004",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "林廷恩",
+      "studentId": "1132003",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "李杰城",
+      "studentId": "1132002",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "李大衞",
+      "studentId": "1132001",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "葉祐瑋",
+      "studentId": "1131758",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "許晉榮",
+      "studentId": "1122026",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "黃昱瀚",
+      "studentId": "1122016",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "賴品勛",
+      "studentId": "1122014",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "羅侑新",
+      "studentId": "1122007",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "陳昱洋",
+      "studentId": "1122002",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "劉匡玶",
+      "studentId": "1121822",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "余晉賢",
+      "studentId": "1121808",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "黃莉淇",
+      "studentId": "1112043",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "蔡珮婷",
+      "studentId": "1112032",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "官　昕",
+      "studentId": "1112020",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "陳囿臻",
+      "studentId": "1112014",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "卓宇恒",
+      "studentId": "1112012",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "郭祖文",
+      "studentId": "1111855",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "楊蓁蓁",
+      "studentId": "1111813",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "王祐綺",
+      "studentId": "1111811",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "江語檬",
+      "studentId": "1111810",
+      "email": null,
+      "class": "B"
+    },
+    {
+      "name": "呂心羽",
+      "studentId": "1133230",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "黃鈺潔",
+      "studentId": "1133224",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "黃詠晴",
+      "studentId": "1133213",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "王翊宸",
+      "studentId": "1132036",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "陳禹彤",
+      "studentId": "1132029",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "萬珮妮",
+      "studentId": "1131874",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "韓立迦",
+      "studentId": "1131873",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "高林優次",
+      "studentId": "1131868",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "黃賢麗",
+      "studentId": "1131867",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "韋金水",
+      "studentId": "1131856",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "陳裕翔",
+      "studentId": "1131855",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "林敬倫",
+      "studentId": "1131854",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "陳莛璿",
+      "studentId": "1131853",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "古宛妮",
+      "studentId": "1131852",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "曾洋博",
+      "studentId": "1131851",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "林亞萱",
+      "studentId": "1131850",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "陳彥達",
+      "studentId": "1131849",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "楊晨渝",
+      "studentId": "1131848",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "王晴妏",
+      "studentId": "1131847",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "許竣瑋",
+      "studentId": "1131846",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "莊子明",
+      "studentId": "1131845",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "蔡宥捷",
+      "studentId": "1131844",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "邱　苗",
+      "studentId": "1131843",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "嚴冠宇",
+      "studentId": "1131842",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "施昱瑄",
+      "studentId": "1131841",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "張瑀潔",
+      "studentId": "1131840",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "周芯儀",
+      "studentId": "1131839",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "黃琳廷",
+      "studentId": "1131838",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "李紫璇",
+      "studentId": "1131837",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "簡靜瀅",
+      "studentId": "1131836",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "張倚寧",
+      "studentId": "1131835",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "石臻翎",
+      "studentId": "1131834",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "李崗亦",
+      "studentId": "1131832",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "劉潔衣",
+      "studentId": "1131830",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "林詩穎",
+      "studentId": "1131829",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "謝欣逸",
+      "studentId": "1131828",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "陳宣伶",
+      "studentId": "1131827",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "林成諺",
+      "studentId": "1131826",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "王駿宇",
+      "studentId": "1131825",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "王昱翔",
+      "studentId": "1131824",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "孫芷若",
+      "studentId": "1131823",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "張庭語",
+      "studentId": "1131822",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "王品奕",
+      "studentId": "1131821",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "鐘瑜晴",
+      "studentId": "1131820",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "林亮吟",
+      "studentId": "1131819",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "王芊文",
+      "studentId": "1131818",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "林韋葶",
+      "studentId": "1131817",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "王宥慈",
+      "studentId": "1131816",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "黃羽岑",
+      "studentId": "1131815",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "黃亞綸",
+      "studentId": "1131814",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "呂沛庭",
+      "studentId": "1131813",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "林儷佳",
+      "studentId": "1131812",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "張志暘",
+      "studentId": "1131811",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "陳冠樺",
+      "studentId": "1131810",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "莊芷嫻",
+      "studentId": "1131809",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "吳予彤",
+      "studentId": "1131808",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "蔡秉哲",
+      "studentId": "1131807",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "蔡書沁",
+      "studentId": "1131806",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "邱璿恩",
+      "studentId": "1131805",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "曾榆婷",
+      "studentId": "1131804",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "羅崧翰",
+      "studentId": "1131803",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "邱裕文",
+      "studentId": "1131801",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "李英榤",
+      "studentId": "1123251",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "黃于芳",
+      "studentId": "1123250",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "林希柔",
+      "studentId": "1123017",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "江詠婷",
+      "studentId": "1122955",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "陳玉慶",
+      "studentId": "1122059",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "曾秋燕",
+      "studentId": "1122029",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "阮楊恬雅",
+      "studentId": "1121862",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "張妤怡",
+      "studentId": "1121861",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "武羚芝",
+      "studentId": "1121860",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "張氏茹心",
+      "studentId": "1121859",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "紀昱安",
+      "studentId": "1121853",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "高昕妤",
+      "studentId": "1121826",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "沈庭安",
+      "studentId": "1121807",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "寄田歩果",
+      "studentId": "1121766",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "陳禹安",
+      "studentId": "1112009",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "林佳晨",
+      "studentId": "1111830",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "莊喬茵",
+      "studentId": "1111829",
+      "email": null,
+      "class": "A"
+    },
+    {
+      "name": "黃　翊",
+      "studentId": "1101804",
+      "email": null,
+      "class": "A"
+    }
+  ]
+}

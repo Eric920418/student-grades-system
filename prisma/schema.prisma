@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Course {
+  id          String   @id @default(cuid())
+  name        String   @unique // 課程名稱：3D電腦繪圖、互動投影
+  code        String?  // 課程代碼：IC335
+  description String?  // 課程描述
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  students   Student[]
+  groups     Group[]
+  gradeItems GradeItem[]
+
+  @@map("courses")
+}
+
+model Student {
+  id        String   @id @default(cuid())
+  name      String
+  studentId String   // 移除全域唯一約束
+  email     String?
+  class     String   @default("A") // A班或B班
+  courseId  String   // 課程ID
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  course        Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  studentGroups StudentGroup[]
+  grades        Grade[]
+
+  @@unique([studentId, courseId]) // 同一課程內學號唯一
+  @@map("students")
+}
+
+model Group {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  courseId    String   // 課程ID
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  course        Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  studentGroups StudentGroup[]
+
+  @@unique([name, courseId]) // 同一課程內分組名稱唯一
+  @@map("groups")
+}
+
+model StudentGroup {
+  id        String   @id @default(cuid())
+  studentId String
+  groupId   String
+  role      String?  // 職位：導演、模型、後製、動畫
+  createdAt DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  group   Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, groupId])
+  @@map("student_groups")
+}
+
+model GradeItem {
+  id       String @id @default(cuid())
+  name     String
+  weight   Float  @default(1.0)
+  maxScore Float  @default(100.0)
+  courseId String // 課程ID
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  course Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  grades Grade[]
+
+  @@unique([name, courseId]) // 同一課程內成績項目名稱唯一
+  @@map("grade_items")
+}
+
+model Grade {
+  id          String   @id @default(cuid())
+  studentId   String
+  gradeItemId String
+  score       Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  gradeItem GradeItem @relation(fields: [gradeItemId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, gradeItemId])
+  @@map("grades")
+}
