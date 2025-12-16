@@ -54,9 +54,23 @@ export async function PUT(
       );
     }
 
-    const existingStudent = await prisma.student.findUnique({
-      where: { 
+    // 先獲取當前學生的 courseId
+    const currentStudent = await prisma.student.findUnique({
+      where: { id: params.id }
+    });
+
+    if (!currentStudent) {
+      return NextResponse.json(
+        { error: '找不到學生' },
+        { status: 404 }
+      );
+    }
+
+    // 檢查同課程內是否有其他同學號學生
+    const existingStudent = await prisma.student.findFirst({
+      where: {
         studentId,
+        courseId: currentStudent.courseId,
         NOT: { id: params.id }
       }
     });
