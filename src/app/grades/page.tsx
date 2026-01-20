@@ -62,6 +62,7 @@ export default function GradesPage() {
   const [editingGrade, setEditingGrade] = useState<{studentId: string, gradeItemId: string, score: string} | null>(null);
   const [editingGroupGrade, setEditingGroupGrade] = useState<{groupId: string, gradeItemId: string, score: string} | null>(null);
   const [groupSearchQuery, setGroupSearchQuery] = useState<string>('');
+  const [showGradedGroups, setShowGradedGroups] = useState<boolean>(false);
 
   const searchParams = useSearchParams();
   const courseId = searchParams.get('courseId');
@@ -276,13 +277,16 @@ export default function GradesPage() {
 
   const selectedGradeItem = gradeItems.find(item => item.id === selectedGradeItemId);
 
-  // 過濾已評分的組別：如果組內所有成員都已經有該項目成績，則隱藏該組
-  const getUnfinishedGroups = () => {
+  // 過濾組別：根據 showGradedGroups 決定是否顯示已評分組別
+  const getFilteredGroups = () => {
     if (!selectedGradeItemId) return groups;
 
     return groups.filter(group => {
       // 檢查該組是否有成員
       if (group.studentGroups.length === 0) return false;
+
+      // 如果顯示已評分組別，則顯示所有有成員的組
+      if (showGradedGroups) return true;
 
       // 檢查是否所有成員都已經有該成績項目的分數
       const allMembersGraded = group.studentGroups.every(sg => {
@@ -298,14 +302,35 @@ export default function GradesPage() {
     });
   };
 
-  const unfinishedGroups = getUnfinishedGroups();
+  // 檢查組別是否已評分
+  const isGroupGraded = (group: Group) => {
+    if (!selectedGradeItemId || group.studentGroups.length === 0) return false;
+    return group.studentGroups.every(sg =>
+      grades.some(grade =>
+        grade.studentId === sg.studentId &&
+        grade.gradeItemId === selectedGradeItemId
+      )
+    );
+  };
+
+  // 獲取組別的當前成績（取第一個成員的成績作為顯示）
+  const getGroupCurrentScore = (group: Group) => {
+    if (!selectedGradeItemId || group.studentGroups.length === 0) return null;
+    const firstMemberGrade = grades.find(grade =>
+      grade.studentId === group.studentGroups[0].studentId &&
+      grade.gradeItemId === selectedGradeItemId
+    );
+    return firstMemberGrade?.score ?? null;
+  };
+
+  const filteredGroups = getFilteredGroups();
 
   // 搜尋學號對應的組別
   const getSearchedGroups = () => {
-    if (!groupSearchQuery.trim()) return unfinishedGroups;
+    if (!groupSearchQuery.trim()) return filteredGroups;
 
     const query = groupSearchQuery.trim().toLowerCase();
-    return unfinishedGroups.filter(group =>
+    return filteredGroups.filter(group =>
       group.studentGroups.some(sg =>
         sg.student.studentId.toLowerCase().includes(query)
       )
@@ -497,34 +522,48 @@ export default function GradesPage() {
       {/* 分組模式 */}
       {mode === 'group' && selectedGradeItem && (
         <div className="bg-white rounded-lg shadow-sm overflow-x-auto">
-          {/* 學號搜尋框 */}
-          {groups.length > 0 && unfinishedGroups.length > 0 && (
+          {/* 工具列：學號搜尋 + 顯示已評分切換 */}
+          {groups.length > 0 && (
             <div className="p-4 border-b border-gray-200">
-              <div className="flex items-center gap-3">
-                <label htmlFor="groupSearch" className="text-sm font-medium text-gray-700 whitespace-nowrap">
-                  🔍 學號查組：
-                </label>
-                <input
-                  id="groupSearch"
-                  type="text"
-                  value={groupSearchQuery}
-                  onChange={(e) => setGroupSearchQuery(e.target.value)}
-                  placeholder="輸入學號快速查找組別..."
-                  className="flex-1 max-w-xs px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                {groupSearchQuery && (
-                  <button
-                    onClick={() => setGroupSearchQuery('')}
-                    className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700"
-                  >
-                    清除
-                  </button>
-                )}
-                {groupSearchQuery && (
-                  <span className="text-sm text-gray-500">
-                    找到 {searchedGroups.length} 組
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-3">
+                  <label htmlFor="groupSearch" className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                    學號查組：
+                  </label>
+                  <input
+                    id="groupSearch"
+                    type="text"
+                    value={groupSearchQuery}
+                    onChange={(e) => setGroupSearchQuery(e.target.value)}
+                    placeholder="輸入學號快速查找組別..."
+                    className="flex-1 max-w-xs px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  {groupSearchQuery && (
+                    <button
+                      onClick={() => setGroupSearchQuery('')}
+                      className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700"
+                    >
+                      清除
+                    </button>
+                  )}
+                  {groupSearchQuery && (
+                    <span className="text-sm text-gray-500">
+                      找到 {searchedGroups.length} 組
+                    </span>
+                  )}
+                </div>
+                {/* 顯示已評分組別切換 */}
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showGradedGroups}
+                    onChange={(e) => setShowGradedGroups(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    顯示已評分組別（修改成績）
                   </span>
-                )}
+                </label>
               </div>
             </div>
           )}
@@ -535,10 +574,10 @@ export default function GradesPage() {
                 前往分組管理
               </Link>
             </div>
-          ) : unfinishedGroups.length === 0 ? (
+          ) : filteredGroups.length === 0 && !showGradedGroups ? (
             <div className="text-center py-8 text-gray-500">
               <p className="text-green-600 font-medium">✓ 所有分組都已完成「{selectedGradeItem.name}」的評分</p>
-              <p className="mt-2 text-sm">請切換到其他成績項目，或返回個人模式查看成績</p>
+              <p className="mt-2 text-sm">如需修改成績，請勾選上方「顯示已評分組別」</p>
             </div>
           ) : searchedGroups.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
@@ -621,14 +660,31 @@ export default function GradesPage() {
                       ) : (
                         <button
                           onClick={() => handleGroupGradeEdit(group.id, selectedGradeItemId)}
-                          className="px-4 py-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition-colors min-w-[200px]"
+                          className={`px-4 py-3 rounded-lg transition-colors min-w-[200px] ${
+                            isGroupGraded(group)
+                              ? 'bg-green-50 hover:bg-green-100 text-green-700 border border-green-200'
+                              : 'bg-blue-50 hover:bg-blue-100 text-blue-700'
+                          }`}
                         >
-                          <div className="text-base font-medium">
-                            點擊給整組評分
-                          </div>
-                          <div className="text-xs text-blue-600 mt-1">
-                            {group.studentGroups.length} 位成員將獲得相同成績
-                          </div>
+                          {isGroupGraded(group) ? (
+                            <>
+                              <div className="text-lg font-bold">
+                                {getGroupCurrentScore(group)?.toFixed(1)} 分
+                              </div>
+                              <div className="text-xs text-green-600 mt-1">
+                                已評分 · 點擊修改
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="text-base font-medium">
+                                點擊給整組評分
+                              </div>
+                              <div className="text-xs text-blue-600 mt-1">
+                                {group.studentGroups.length} 位成員將獲得相同成績
+                              </div>
+                            </>
+                          )}
                         </button>
                       )}
                     </td>
