@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // 管理員帳密（寫死）
 const ADMIN_USERNAME = 'admin';
-const ADMIN_PASSWORD = 'admin123';
+const ADMIN_PASSWORD = 'peopleone';
 
 const COOKIE_NAME = 'auth-token';
 const JWT_EXPIRY = '7d';
