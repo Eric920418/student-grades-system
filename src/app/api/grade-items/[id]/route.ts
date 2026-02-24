@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdmin } from '@/lib/auth';
 
 // GET - 獲取單一成績項目詳細信息
 export async function GET(
@@ -65,6 +66,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const adminError = requireAdmin(request);
+  if (adminError) return adminError;
+
   try {
     // 先檢查成績項目是否存在
     const gradeItem = await prisma.gradeItem.findUnique({

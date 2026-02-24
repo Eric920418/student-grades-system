@@ -7,6 +7,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Account {
+  id        String   @id @default(cuid())
+  studentId String   @unique  // 學號（全域唯一）
+  name      String
+  class     String   @default("A")
+  createdAt DateTime @default(now())
+
+  @@map("accounts")
+}
+
 model Course {
   id          String   @id @default(cuid())
   name        String   @unique // 課程名稱：3D電腦繪圖、互動投影
@@ -60,6 +70,7 @@ model StudentGroup {
   studentId String
   groupId   String
   role      String?  // 職位：導演、模型、後製、動畫
+  isLeader  Boolean  @default(false) // 是否為組長
   createdAt DateTime @default(now())
 
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)

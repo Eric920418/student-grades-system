@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdmin } from '@/lib/auth';
 
 export async function GET(
   request: NextRequest,
@@ -43,6 +44,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const adminError = requireAdmin(request);
+  if (adminError) return adminError;
+
   try {
     const body = await request.json();
     const { name, studentId, email, class: studentClass } = body;
@@ -106,6 +110,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const adminError = requireAdmin(request);
+  if (adminError) return adminError;
+
   try {
     await prisma.student.delete({
       where: { id: params.id }

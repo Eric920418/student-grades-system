@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdmin } from '@/lib/auth';
 
 /**
  * POST /api/grades/group
  * 為整個分組的所有成員批次登記相同成績
  */
 export async function POST(request: NextRequest) {
+  const adminError = requireAdmin(request);
+  if (adminError) return adminError;
+
   try {
     const body = await request.json();
     const { groupId, gradeItemId, score } = body;
