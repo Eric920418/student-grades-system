@@ -1,10 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 type LoginType = 'student' | 'admin';
 type PageMode = 'login' | 'register';
+
+interface CourseOption {
+  id: string;
+  name: string;
+  code: string | null;
+  hasClassOptions: boolean;
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,7 +26,26 @@ export default function LoginPage() {
   // 註冊用
   const [regStudentId, setRegStudentId] = useState('');
   const [regName, setRegName] = useState('');
+  const [regCourseId, setRegCourseId] = useState('');
   const [regClass, setRegClass] = useState<'A' | 'B'>('A');
+  const [courses, setCourses] = useState<CourseOption[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(false);
+
+  // 切換到註冊模式時載入課程列表
+  useEffect(() => {
+    if (pageMode === 'register' && courses.length === 0) {
+      setCoursesLoading(true);
+      fetch('/api/auth/register')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.courses) setCourses(data.courses);
+        })
+        .catch(() => {})
+        .finally(() => setCoursesLoading(false));
+    }
+  }, [pageMode, courses.length]);
+
+  const selectedCourse = courses.find((c) => c.id === regCourseId);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,7 +95,8 @@ export default function LoginPage() {
         body: JSON.stringify({
           studentId: regStudentId,
           name: regName,
-          class: regClass,
+          courseId: regCourseId,
+          class: selectedCourse?.hasClassOptions ? regClass : 'A',
         }),
       });
 
@@ -245,33 +272,62 @@ export default function LoginPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    班級
+                    選擇課程
                   </label>
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="class"
-                        value="A"
-                        checked={regClass === 'A'}
-                        onChange={() => setRegClass('A')}
-                        className="text-blue-600"
-                      />
-                      <span className="text-sm text-gray-700">A班</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="class"
-                        value="B"
-                        checked={regClass === 'B'}
-                        onChange={() => setRegClass('B')}
-                        className="text-blue-600"
-                      />
-                      <span className="text-sm text-gray-700">B班</span>
-                    </label>
-                  </div>
+                  {coursesLoading ? (
+                    <p className="text-sm text-gray-500 py-2">載入課程中...</p>
+                  ) : courses.length === 0 ? (
+                    <p className="text-sm text-red-500 py-2">目前沒有可選課程</p>
+                  ) : (
+                    <select
+                      value={regCourseId}
+                      onChange={(e) => {
+                        setRegCourseId(e.target.value);
+                        setRegClass('A');
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      required
+                    >
+                      <option value="">請選擇課程</option>
+                      {courses.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}{c.code ? ` (${c.code})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
+                {selectedCourse?.hasClassOptions && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      班級
+                    </label>
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="class"
+                          value="A"
+                          checked={regClass === 'A'}
+                          onChange={() => setRegClass('A')}
+                          className="text-blue-600"
+                        />
+                        <span className="text-sm text-gray-700">A班</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="class"
+                          value="B"
+                          checked={regClass === 'B'}
+                          onChange={() => setRegClass('B')}
+                          className="text-blue-600"
+                        />
+                        <span className="text-sm text-gray-700">B班</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
 
                 <button
                   type="submit"

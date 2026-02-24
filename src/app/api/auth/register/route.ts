@@ -2,10 +2,44 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { signToken, getTokenCookieOptions } from '@/lib/auth';
 
+// GET: 回傳可選課程列表（含是否有分班資訊）
+export async function GET() {
+  try {
+    const courses = await prisma.course.findMany({
+      select: { id: true, name: true, code: true },
+      orderBy: { name: 'asc' },
+    });
+
+    // 檢查每個課程是否有 A/B 分班（看既有學生是否有不同 class 值）
+    const coursesWithClassInfo = await Promise.all(
+      courses.map(async (course) => {
+        const distinctClasses = await prisma.student.findMany({
+          where: { courseId: course.id },
+          select: { class: true },
+          distinct: ['class'],
+        });
+        return {
+          ...course,
+          hasClassOptions: distinctClasses.length > 1,
+        };
+      })
+    );
+
+    return NextResponse.json({ courses: coursesWithClassInfo });
+  } catch (error) {
+    console.error('取得課程列表錯誤:', error);
+    return NextResponse.json(
+      { error: '取得課程列表失敗', details: error instanceof Error ? error.message : '未知錯誤' },
+      { status: 500 }
+    );
+  }
+}
+
+// POST: 註冊帳號 + 自動加入所選課程
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { studentId, name, class: studentClass } = body;
+    const { studentId, name, class: studentClass, courseId } = body;
 
     if (!studentId || typeof studentId !== 'string' || !studentId.trim()) {
       return NextResponse.json({ error: '請輸入學號' }, { status: 400 });
@@ -13,10 +47,19 @@ export async function POST(request: NextRequest) {
     if (!name || typeof name !== 'string' || !name.trim()) {
       return NextResponse.json({ error: '請輸入姓名' }, { status: 400 });
     }
+    if (!courseId || typeof courseId !== 'string') {
+      return NextResponse.json({ error: '請選擇課程' }, { status: 400 });
+    }
 
     const trimmedId = studentId.trim();
     const trimmedName = name.trim();
     const validClass = studentClass === 'B' ? 'B' : 'A';
+
+    // 確認課程存在
+    const course = await prisma.course.findUnique({ where: { id: courseId } });
+    if (!course) {
+      return NextResponse.json({ error: '課程不存在' }, { status: 404 });
+    }
 
     // 檢查 Account 是否已存在
     const existingAccount = await prisma.account.findUnique({
@@ -47,7 +90,7 @@ export async function POST(request: NextRequest) {
       });
       message = '帳號已自動建立（從既有學生資料）';
     } else {
-      // 全新註冊
+      // 全新註冊：建立 Account + Student
       account = await prisma.account.create({
         data: {
           studentId: trimmedId,
@@ -55,7 +98,18 @@ export async function POST(request: NextRequest) {
           class: validClass,
         },
       });
-      message = '註冊成功';
+
+      // 同時建立該課程的 Student 記錄
+      await prisma.student.create({
+        data: {
+          studentId: trimmedId,
+          name: trimmedName,
+          class: validClass,
+          courseId,
+        },
+      });
+
+      message = `註冊成功，已加入「${course.name}」`;
     }
 
     // 簽發 JWT 自動登入
