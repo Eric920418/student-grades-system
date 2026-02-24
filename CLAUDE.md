@@ -38,11 +38,12 @@ prisma db push        # 同步 schema 到資料庫（不可加 --accept-data-los
 2. **API 層** (`src/lib/auth.ts` 的 `requireAdmin`)：從 headers 讀取用戶資訊做權限檢查
 3. **前端** (`src/components/AuthProvider.tsx`)：React Context 提供登入狀態
 
-雙角色：admin（硬編碼帳密 admin/peopleone）、student（學號=密碼）。學生只能存取 `/my-groups` 和 `/api/student/` 路由，管理員專用頁面定義在 middleware 的 `ADMIN_ONLY_PAGES`。
+雙角色：admin（硬編碼帳密 admin/peopleone，顯示為「老師」）、student（學號=密碼）。學生只能存取 `/my-groups` 和 `/api/student/` 路由，老師專用頁面定義在 middleware 的 `ADMIN_ONLY_PAGES`。
 
 ## 資料模型核心關係
 
 - **多課程隔離**：Student、Group、GradeItem 都透過 `courseId` 關聯到 Course，同一學號可存在於不同課程
+- **分班控制**：Course 上的 `hasClassDivision` 欄位控制是否啟用 A/B 分班，前端學生管理、註冊頁面據此隱藏/顯示班級欄位
 - **Account vs Student**：Account 是登入帳號（學號全域唯一），Student 是課程內的學生記錄（同課程內學號唯一）。學生加入課程時建立 Student 記錄
 - **唯一約束**：`@@unique([studentId, courseId])` 在 Student、`@@unique([name, courseId])` 在 Group 和 GradeItem、`@@unique([studentId, gradeItemId])` 在 Grade
 - 所有外鍵都設定 `onDelete: Cascade`
@@ -51,7 +52,7 @@ prisma db push        # 同步 schema 到資料庫（不可加 --accept-data-los
 
 | 路由 | 角色 | 功能 |
 |------|------|------|
-| `/` | admin | 首頁，選擇課程（courseId 帶入 query string） |
+| `/` | admin | 首頁，選擇/管理課程（CRUD），courseId 帶入 query string |
 | `/students?courseId=` | admin | 學生管理 |
 | `/groups?courseId=` | admin | 分組管理 |
 | `/grade-items?courseId=` | admin | 成績項目管理 |
@@ -61,7 +62,8 @@ prisma db push        # 同步 schema 到資料庫（不可加 --accept-data-los
 
 ## API 約定
 
-- 管理員 API 的寫入操作都用 `requireAdmin(request)` 檢查
+- 老師 API 的寫入操作都用 `requireAdmin(request)` 檢查
+- 課程 CRUD API：`GET/POST /api/courses`、`GET/PUT/DELETE /api/courses/[id]`
 - 學生自助 API 在 `/api/student/groups`，使用 `action` 欄位區分操作（join-course、create、join、leave、update-role、set-leader）
 - Prisma Client 單例在 `src/lib/prisma.ts`，開發環境掛在 globalThis 避免 hot reload 重複建立連線
 

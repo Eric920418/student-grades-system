@@ -6,24 +6,14 @@ import { signToken, getTokenCookieOptions } from '@/lib/auth';
 export async function GET() {
   try {
     const courses = await prisma.course.findMany({
-      select: { id: true, name: true, code: true },
+      select: { id: true, name: true, code: true, hasClassDivision: true },
       orderBy: { name: 'asc' },
     });
 
-    // 檢查每個課程是否有 A/B 分班（看既有學生是否有不同 class 值）
-    const coursesWithClassInfo = await Promise.all(
-      courses.map(async (course) => {
-        const distinctClasses = await prisma.student.findMany({
-          where: { courseId: course.id },
-          select: { class: true },
-          distinct: ['class'],
-        });
-        return {
-          ...course,
-          hasClassOptions: distinctClasses.length > 1,
-        };
-      })
-    );
+    const coursesWithClassInfo = courses.map((c) => ({
+      ...c,
+      hasClassOptions: c.hasClassDivision,
+    }));
 
     return NextResponse.json({ courses: coursesWithClassInfo });
   } catch (error) {

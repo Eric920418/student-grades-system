@@ -2,7 +2,7 @@ import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
-// 管理員帳密（寫死）
+// 老師帳密（寫死）
 const ADMIN_USERNAME = 'admin';
 const ADMIN_PASSWORD = 'peopleone';
 
@@ -76,13 +76,13 @@ export function getUserFromHeaders(request: NextRequest): UserPayload | null {
 }
 
 /**
- * API route 用：檢查是否為管理員，不是的話回傳 403 Response
+ * API route 用：檢查是否為老師，不是的話回傳 403 Response
  */
 export function requireAdmin(request: NextRequest): NextResponse | null {
   const user = getUserFromHeaders(request);
   if (!user || user.role !== 'admin') {
     return NextResponse.json(
-      { error: '需要管理員權限' },
+      { error: '需要老師權限' },
       { status: 403 }
     );
   }

@@ -6,7 +6,7 @@ const COOKIE_NAME = 'auth-token';
 // 公開路由（不需要登入）
 const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/auth/logout', '/api/auth/register'];
 
-// 管理員專用頁面
+// 老師專用頁面
 const ADMIN_ONLY_PAGES = ['/students', '/grade-items', '/grades', '/groups'];
 
 // 學生分組 API（學生也能用）
@@ -60,7 +60,7 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // 學生嘗試訪問管理員頁面 → redirect 到 /my-groups
+  // 學生嘗試訪問老師頁面 → redirect 到 /my-groups
   if (payload.role === 'student') {
     // 檢查頁面路由
     if (ADMIN_ONLY_PAGES.some(p => pathname.startsWith(p))) {
@@ -74,7 +74,7 @@ export async function middleware(request: NextRequest) {
     if (pathname.startsWith('/api/') && !STUDENT_API_PATHS.some(p => pathname.startsWith(p))) {
       const method = request.method;
       if (method !== 'GET') {
-        return NextResponse.json({ error: '需要管理員權限' }, { status: 403 });
+        return NextResponse.json({ error: '需要老師權限' }, { status: 403 });
       }
     }
   }

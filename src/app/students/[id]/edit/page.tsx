@@ -10,6 +10,7 @@ interface Student {
   studentId: string;
   email?: string;
   class: string;
+  courseId?: string;
 }
 
 export default function EditStudentPage({ params }: { params: { id: string } }) {
@@ -23,6 +24,7 @@ export default function EditStudentPage({ params }: { params: { id: string } }) 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasClassDivision, setHasClassDivision] = useState<boolean>(true);
   const router = useRouter();
 
   useEffect(() => {
@@ -46,6 +48,16 @@ export default function EditStudentPage({ params }: { params: { id: string } }) 
         email: data.email || '',
         class: data.class || 'A'
       });
+      // 取得課程分班設定
+      if (data.courseId) {
+        try {
+          const courseRes = await fetch(`/api/courses/${data.courseId}`);
+          const courseData = await courseRes.json();
+          if (courseData.hasClassDivision !== undefined) {
+            setHasClassDivision(courseData.hasClassDivision);
+          }
+        } catch {}
+      }
       setError(null);
     } catch (error) {
       setError(error instanceof Error ? error.message : '獲取學生資料失敗');
@@ -184,22 +196,24 @@ export default function EditStudentPage({ params }: { params: { id: string } }) 
             />
           </div>
 
-          <div>
-            <label htmlFor="class" className="block text-sm font-medium text-gray-700 mb-1">
-              班級 <span className="text-red-500">*</span>
-            </label>
-            <select
-              id="class"
-              name="class"
-              value={formData.class}
-              onChange={handleChange}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="A">A班</option>
-              <option value="B">B班</option>
-            </select>
-          </div>
+          {hasClassDivision && (
+            <div>
+              <label htmlFor="class" className="block text-sm font-medium text-gray-700 mb-1">
+                班級 <span className="text-red-500">*</span>
+              </label>
+              <select
+                id="class"
+                name="class"
+                value={formData.class}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="A">A班</option>
+                <option value="B">B班</option>
+              </select>
+            </div>
+          )}
 
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">

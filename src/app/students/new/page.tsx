@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -15,9 +15,26 @@ export default function NewStudentPage() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasClassDivision, setHasClassDivision] = useState<boolean>(true);
   const router = useRouter();
   const searchParams = useSearchParams();
   const courseId = searchParams.get('courseId');
+
+  useEffect(() => {
+    if (courseId) {
+      fetch(`/api/courses/${courseId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.hasClassDivision !== undefined) {
+            setHasClassDivision(data.hasClassDivision);
+            if (!data.hasClassDivision) {
+              setFormData((prev) => ({ ...prev, class: 'A' }));
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  }, [courseId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,22 +144,24 @@ export default function NewStudentPage() {
             />
           </div>
 
-          <div>
-            <label htmlFor="class" className="block text-sm font-medium text-gray-700 mb-1">
-              班級 <span className="text-red-500">*</span>
-            </label>
-            <select
-              id="class"
-              name="class"
-              value={formData.class}
-              onChange={handleChange}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="A">A班</option>
-              <option value="B">B班</option>
-            </select>
-          </div>
+          {hasClassDivision && (
+            <div>
+              <label htmlFor="class" className="block text-sm font-medium text-gray-700 mb-1">
+                班級 <span className="text-red-500">*</span>
+              </label>
+              <select
+                id="class"
+                name="class"
+                value={formData.class}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="A">A班</option>
+                <option value="B">B班</option>
+              </select>
+            </div>
+          )}
 
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">

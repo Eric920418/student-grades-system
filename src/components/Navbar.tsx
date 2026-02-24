@@ -71,7 +71,7 @@ export default function Navbar() {
                   ? 'bg-purple-100 text-purple-700'
                   : 'bg-green-100 text-green-700'
               }`}>
-                {isAdmin ? '管理員' : '學生'}
+                {isAdmin ? '老師' : '學生'}
               </span>
             </span>
             <button

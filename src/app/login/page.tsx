@@ -161,7 +161,7 @@ export default function LoginPage() {
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  管理員登入
+                  老師登入
                 </button>
               </div>
 
@@ -194,7 +194,7 @@ export default function LoginPage() {
                         type="text"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
-                        placeholder="請輸入管理員帳號"
+                        placeholder="請輸入老師帳號"
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                         required
                         autoFocus

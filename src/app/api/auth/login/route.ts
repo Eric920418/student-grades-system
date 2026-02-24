@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (type === 'admin') {
-      // 管理員登入
+      // 老師登入
       if (!username || !password) {
         return NextResponse.json({ error: '請輸入帳號和密碼' }, { status: 400 });
       }
@@ -77,11 +77,11 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: '帳號或密碼錯誤' }, { status: 401 });
       }
 
-      const token = await signToken({ role: 'admin', name: '管理員' });
+      const token = await signToken({ role: 'admin', name: '老師' });
 
       const cookieOptions = getTokenCookieOptions();
       const response = NextResponse.json({
-        user: { role: 'admin', name: '管理員' },
+        user: { role: 'admin', name: '老師' },
       });
       response.cookies.set(cookieOptions.name, token, cookieOptions);
       return response;

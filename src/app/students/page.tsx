@@ -37,12 +37,24 @@ export default function StudentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [classFilter, setClassFilter] = useState<string>('all');
   const [courseName, setCourseName] = useState<string>('');
+  const [hasClassDivision, setHasClassDivision] = useState<boolean>(true);
   
   const searchParams = useSearchParams();
   const courseId = searchParams.get('courseId');
 
   useEffect(() => {
     fetchStudents();
+    if (courseId) {
+      fetch(`/api/courses/${courseId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.hasClassDivision !== undefined) {
+            setHasClassDivision(data.hasClassDivision);
+          }
+          if (data.name) setCourseName(data.name);
+        })
+        .catch(() => {});
+    }
   }, [classFilter, courseId]);
 
   const fetchStudents = async () => {
@@ -63,11 +75,6 @@ export default function StudentsPage() {
       }
       
       setStudents(data);
-      
-      // 設定課程名稱
-      if (data.length > 0 && data[0].course) {
-        setCourseName(data[0].course.name);
-      }
       
       setError(null);
     } catch (error) {
@@ -127,21 +134,23 @@ export default function StudentsPage() {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <label htmlFor="class-filter" className="text-sm font-medium text-gray-700">
-              班級篩選：
-            </label>
-            <select
-              id="class-filter"
-              value={classFilter}
-              onChange={(e) => setClassFilter(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">全部班級</option>
-              <option value="A">A班</option>
-              <option value="B">B班</option>
-            </select>
-          </div>
+          {hasClassDivision && (
+            <div className="flex items-center gap-2">
+              <label htmlFor="class-filter" className="text-sm font-medium text-gray-700">
+                班級篩選：
+              </label>
+              <select
+                id="class-filter"
+                value={classFilter}
+                onChange={(e) => setClassFilter(e.target.value)}
+                className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">全部班級</option>
+                <option value="A">A班</option>
+                <option value="B">B班</option>
+              </select>
+            </div>
+          )}
           <Link
             href={`/students/new${courseId ? `?courseId=${courseId}` : ''}`}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
@@ -172,9 +181,11 @@ export default function StudentsPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   姓名
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  班級
-                </th>
+                {hasClassDivision && (
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    班級
+                  </th>
+                )}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Email
                 </th>
@@ -198,13 +209,15 @@ export default function StudentsPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {student.name}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      student.class === 'A' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
-                    }`}>
-                      {student.class}班
-                    </span>
-                  </td>
+                  {hasClassDivision && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        student.class === 'A' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+                      }`}>
+                        {student.class}班
+                      </span>
+                    </td>
+                  )}
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {student.email || '-'}
                   </td>
