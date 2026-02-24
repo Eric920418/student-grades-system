@@ -162,7 +162,7 @@ export default function NewGroupPage() {
           >
             ← 返回首頁
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900">新增分組</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">新增分組</h1>
         </div>
 
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
@@ -216,7 +216,7 @@ export default function NewGroupPage() {
             ← 返回分組列表
           </Link>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900">新增分組</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">新增分組</h1>
       </div>
 
       {error && (
@@ -227,7 +227,7 @@ export default function NewGroupPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* 選擇學生 */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">選擇學生</h2>
           
           {/* 搜尋框 */}
@@ -290,7 +290,7 @@ export default function NewGroupPage() {
         </div>
 
         {/* 已選學生和職位分配 */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
             分組成員 ({selectedStudents.length})
           </h2>
@@ -363,9 +363,9 @@ export default function NewGroupPage() {
       </div>
 
       {/* 提交按鈕 */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
         <form onSubmit={handleSubmit}>
-          <div className="flex space-x-4">
+          <div className="flex flex-wrap gap-3">
             <button
               type="submit"
               disabled={loading || selectedStudents.length === 0}

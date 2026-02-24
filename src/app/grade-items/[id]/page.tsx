@@ -217,9 +217,9 @@ export default function GradeItemDetailPage() {
   return (
     <div className="space-y-6">
       {/* 頂部導航 */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
             成績項目詳細信息
           </h1>
           <div className="flex items-center gap-2 mt-2">
@@ -234,9 +234,9 @@ export default function GradeItemDetailPage() {
       </div>
 
       {/* 基本信息卡片 */}
-      <div className="bg-white rounded-lg shadow-sm p-6 space-y-4">
-        <h2 className="text-xl font-semibold text-gray-900">{gradeItem.name}</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="bg-white rounded-lg shadow-sm p-4 md:p-6 space-y-4">
+        <h2 className="text-lg md:text-xl font-semibold text-gray-900">{gradeItem.name}</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <div>
             <div className="text-sm text-gray-500">課程</div>
             <div className="text-lg font-medium text-gray-900">
@@ -260,28 +260,28 @@ export default function GradeItemDetailPage() {
       </div>
 
       {/* 統計信息卡片 */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">統計信息</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-blue-50 rounded-lg p-4">
+          <div className="bg-blue-50 rounded-lg p-3 md:p-4">
             <div className="text-sm text-blue-600">已登記人數</div>
-            <div className="text-2xl font-bold text-blue-900">{totalStudents}</div>
+            <div className="text-xl md:text-2xl font-bold text-blue-900">{totalStudents}</div>
           </div>
-          <div className="bg-green-50 rounded-lg p-4">
+          <div className="bg-green-50 rounded-lg p-3 md:p-4">
             <div className="text-sm text-green-600">平均分數</div>
-            <div className="text-2xl font-bold text-green-900">
+            <div className="text-xl md:text-2xl font-bold text-green-900">
               {avgScore.toFixed(1)}
             </div>
           </div>
-          <div className="bg-purple-50 rounded-lg p-4">
+          <div className="bg-purple-50 rounded-lg p-3 md:p-4">
             <div className="text-sm text-purple-600">最高分</div>
-            <div className="text-2xl font-bold text-purple-900">
+            <div className="text-xl md:text-2xl font-bold text-purple-900">
               {totalStudents > 0 ? maxRecordedScore.toFixed(1) : '-'}
             </div>
           </div>
-          <div className="bg-orange-50 rounded-lg p-4">
+          <div className="bg-orange-50 rounded-lg p-3 md:p-4">
             <div className="text-sm text-orange-600">最低分</div>
-            <div className="text-2xl font-bold text-orange-900">
+            <div className="text-xl md:text-2xl font-bold text-orange-900">
               {totalStudents > 0 ? minRecordedScore.toFixed(1) : '-'}
             </div>
           </div>
@@ -289,7 +289,7 @@ export default function GradeItemDetailPage() {
       </div>
 
       {/* Excel 導出功能 */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">📊 導出成績到 Excel</h3>
 
         <div className="space-y-4">
@@ -348,7 +348,7 @@ export default function GradeItemDetailPage() {
 
       {/* 學生成績列表 */}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
+        <div className="px-4 py-3 md:px-6 md:py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">學生成績列表</h3>
         </div>
 
@@ -357,55 +357,57 @@ export default function GradeItemDetailPage() {
             尚無學生成績記錄
           </div>
         ) : (
-          <table className="min-w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  學號
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  姓名
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  班級
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  分數
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {gradeItem.grades.map((grade) => {
-                const percentage = (grade.score / gradeItem.maxScore) * 100;
-                const level = getGradeLevel(grade.score, gradeItem.maxScore);
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 md:px-6 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    學號
+                  </th>
+                  <th className="px-3 py-2 md:px-6 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    姓名
+                  </th>
+                  <th className="px-3 py-2 md:px-6 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    班級
+                  </th>
+                  <th className="px-3 py-2 md:px-6 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    分數
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {gradeItem.grades.map((grade) => {
+                  const percentage = (grade.score / gradeItem.maxScore) * 100;
+                  const level = getGradeLevel(grade.score, gradeItem.maxScore);
 
-                const levelColors: Record<string, string> = {
-                  'A': 'bg-green-100 text-green-800',
-                  'B': 'bg-blue-100 text-blue-800',
-                  'C': 'bg-yellow-100 text-yellow-800',
-                  'D': 'bg-orange-100 text-orange-800',
-                  'F': 'bg-red-100 text-red-800'
-                };
+                  const levelColors: Record<string, string> = {
+                    'A': 'bg-green-100 text-green-800',
+                    'B': 'bg-blue-100 text-blue-800',
+                    'C': 'bg-yellow-100 text-yellow-800',
+                    'D': 'bg-orange-100 text-orange-800',
+                    'F': 'bg-red-100 text-red-800'
+                  };
 
-                return (
-                  <tr key={grade.student.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {grade.student.studentId}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {grade.student.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {grade.student.class || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {grade.score.toFixed(1)} / {gradeItem.maxScore}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                  return (
+                    <tr key={grade.student.id} className="hover:bg-gray-50">
+                      <td className="px-3 py-3 md:px-6 md:py-4 whitespace-nowrap text-sm text-gray-900">
+                        {grade.student.studentId}
+                      </td>
+                      <td className="px-3 py-3 md:px-6 md:py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {grade.student.name}
+                      </td>
+                      <td className="px-3 py-3 md:px-6 md:py-4 whitespace-nowrap text-sm text-gray-500">
+                        {grade.student.class || '-'}
+                      </td>
+                      <td className="px-3 py-3 md:px-6 md:py-4 whitespace-nowrap text-sm text-gray-900">
+                        {grade.score.toFixed(1)} / {gradeItem.maxScore}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

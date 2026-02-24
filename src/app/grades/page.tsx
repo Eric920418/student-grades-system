@@ -131,7 +131,7 @@ export default function GradesPage() {
 
   const calculateStudentGrades = () => {
     const studentGradeMap: { [studentId: string]: StudentGradeData } = {};
-    
+
     // 初始化每個學生的數據
     students.forEach(student => {
       studentGradeMap[student.id] = {
@@ -296,8 +296,6 @@ export default function GradesPage() {
         );
       });
 
-      // 如果所有成員都已評分，則不顯示（返回false）
-      // 如果還有成員未評分，則顯示（返回true）
       return !allMembersGraded;
     });
   };
@@ -347,9 +345,9 @@ export default function GradesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
             成績登記
             {courseName && <span className="text-lg text-gray-600 ml-2">- {courseName}</span>}
           </h1>
@@ -367,7 +365,7 @@ export default function GradesPage() {
         <div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
           <button
             onClick={() => setMode('individual')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            className={`px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               mode === 'individual'
                 ? 'bg-white text-blue-600 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
@@ -377,7 +375,7 @@ export default function GradesPage() {
           </button>
           <button
             onClick={() => setMode('group')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            className={`px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               mode === 'group'
                 ? 'bg-white text-blue-600 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
@@ -432,13 +430,13 @@ export default function GradesPage() {
           <table className="min-w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">
+                <th className="px-3 py-3 md:px-6 md:py-4 text-left text-sm font-medium text-gray-700">
                   學號 / 姓名
                 </th>
-                <th className="px-6 py-4 text-center text-sm font-medium text-gray-700">
+                <th className="px-3 py-3 md:px-6 md:py-4 text-center text-sm font-medium text-gray-700">
                   {selectedGradeItem.name} 成績
                 </th>
-                <th className="px-6 py-4 text-center text-sm font-medium text-gray-700">
+                <th className="px-3 py-3 md:px-6 md:py-4 text-center text-sm font-medium text-gray-700">
                   總成績（所有項目）
                 </th>
               </tr>
@@ -446,7 +444,7 @@ export default function GradesPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {studentGrades.map((studentData) => (
                 <tr key={studentData.student.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-3 py-3 md:px-6 md:py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">
                       {studentData.student.studentId}
                     </div>
@@ -454,10 +452,10 @@ export default function GradesPage() {
                       {studentData.student.name}
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-center">
+                  <td className="px-3 py-3 md:px-6 md:py-4 text-center">
                     {editingGrade?.studentId === studentData.student.id &&
                      editingGrade?.gradeItemId === selectedGradeItemId ? (
-                      <div className="flex items-center justify-center space-x-2">
+                      <div className="flex flex-wrap items-center justify-center gap-2">
                         <input
                           type="number"
                           value={editingGrade.score}
@@ -465,7 +463,7 @@ export default function GradesPage() {
                             ...editingGrade,
                             score: e.target.value
                           })}
-                          className="w-24 px-3 py-2 text-center border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-20 md:w-24 px-3 py-2 text-center border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                           min="0"
                           max={selectedGradeItem.maxScore}
                           step="0.1"
@@ -502,7 +500,7 @@ export default function GradesPage() {
                       </button>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-center">
+                  <td className="px-3 py-3 md:px-6 md:py-4 text-center">
                     <div className={`text-lg font-bold ${
                       studentData.totalScore >= 90 ? 'text-green-600' :
                       studentData.totalScore >= 80 ? 'text-blue-600' :
@@ -525,7 +523,7 @@ export default function GradesPage() {
           {/* 工具列：學號搜尋 + 顯示已評分切換 */}
           {groups.length > 0 && (
             <div className="p-4 border-b border-gray-200">
-              <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
                   <label htmlFor="groupSearch" className="text-sm font-medium text-gray-700 whitespace-nowrap">
                     學號查組：
@@ -593,10 +591,10 @@ export default function GradesPage() {
             <table className="min-w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">
+                  <th className="px-3 py-3 md:px-6 md:py-4 text-left text-sm font-medium text-gray-700">
                     分組名稱 / 成員
                   </th>
-                  <th className="px-6 py-4 text-center text-sm font-medium text-gray-700">
+                  <th className="px-3 py-3 md:px-6 md:py-4 text-center text-sm font-medium text-gray-700">
                     {selectedGradeItem.name} 成績
                   </th>
                 </tr>
@@ -604,7 +602,7 @@ export default function GradesPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {searchedGroups.map((group) => (
                   <tr key={group.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-3 md:px-6 md:py-4">
                       <div className="text-sm font-medium text-gray-900 mb-2">
                         {group.name}
                       </div>
@@ -626,10 +624,10 @@ export default function GradesPage() {
                         ))}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-center">
+                    <td className="px-3 py-3 md:px-6 md:py-4 text-center">
                       {editingGroupGrade?.groupId === group.id &&
                        editingGroupGrade?.gradeItemId === selectedGradeItemId ? (
-                        <div className="flex items-center justify-center space-x-2">
+                        <div className="flex flex-wrap items-center justify-center gap-2">
                           <input
                             type="number"
                             value={editingGroupGrade.score}
@@ -637,7 +635,7 @@ export default function GradesPage() {
                               ...editingGroupGrade,
                               score: e.target.value
                             })}
-                            className="w-24 px-3 py-2 text-center border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-20 md:w-24 px-3 py-2 text-center border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                             min="0"
                             max={selectedGradeItem.maxScore}
                             step="0.1"
@@ -660,7 +658,7 @@ export default function GradesPage() {
                       ) : (
                         <button
                           onClick={() => handleGroupGradeEdit(group.id, selectedGradeItemId)}
-                          className={`px-4 py-3 rounded-lg transition-colors min-w-[200px] ${
+                          className={`px-4 py-3 rounded-lg transition-colors min-w-[140px] md:min-w-[200px] ${
                             isGroupGraded(group)
                               ? 'bg-green-50 hover:bg-green-100 text-green-700 border border-green-200'
                               : 'bg-blue-50 hover:bg-blue-100 text-blue-700'

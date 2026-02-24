@@ -199,9 +199,9 @@ export default function HomePage() {
   return (
     <div className="space-y-6">
       {/* 課程選擇區域 */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">選擇課程</h2>
+          <h2 className="text-lg md:text-xl font-semibold">選擇課程</h2>
           {isAdmin && (
             <button
               onClick={openCreateModal}
@@ -299,8 +299,8 @@ export default function HomePage() {
 
       {/* 系統功能區域 */}
       {selectedCourse && (
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <h2 className="text-xl font-semibold mb-4">
+        <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
+          <h2 className="text-lg md:text-xl font-semibold mb-4">
             {selectedCourse.name} - 系統功能
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -351,8 +351,8 @@ export default function HomePage() {
 
       {/* 新增/編輯課程 Modal */}
       {showCourseModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-lg shadow-xl p-4 md:p-6 w-full max-w-md">
             <h3 className="text-lg font-semibold mb-4">
               {editingCourse ? '編輯課程' : '新增課程'}
             </h3>
@@ -435,8 +435,8 @@ export default function HomePage() {
 
       {/* 刪除確認 Modal */}
       {deletingCourse && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-lg shadow-xl p-4 md:p-6 w-full max-w-md">
             <h3 className="text-lg font-semibold text-red-600 mb-4">
               確定要刪除課程？
             </h3>

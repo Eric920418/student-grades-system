@@ -142,8 +142,8 @@ export default function MyGroupsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">我的分組</h1>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">我的分組</h1>
         <span className="text-sm text-gray-500">
           {user.name}（{user.studentId}）
         </span>
@@ -157,7 +157,7 @@ export default function MyGroupsPage() {
 
       {/* 加入課程區塊 */}
       {availableCourses.length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-3">加入課程</h2>
           <p className="text-sm text-gray-500 mb-4">以下是你尚未加入的課程，點擊「加入」即可加入</p>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -197,7 +197,7 @@ export default function MyGroupsPage() {
         </div>
       ) : (
         courseGroups.map((cg) => (
-          <div key={cg.courseId} className="bg-white rounded-lg shadow-sm p-6">
+          <div key={cg.courseId} className="bg-white rounded-lg shadow-sm p-4 md:p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">
                 {cg.courseName}
@@ -233,17 +233,17 @@ export default function MyGroupsPage() {
                 </div>
 
                 {/* 成員列表 */}
-                <div className="border rounded-lg overflow-hidden">
-                  <table className="w-full text-sm">
+                <div className="border rounded-lg overflow-x-auto">
+                  <table className="w-full text-sm min-w-[500px]">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-4 py-2 text-left font-medium text-gray-600">姓名</th>
-                        <th className="px-4 py-2 text-left font-medium text-gray-600">學號</th>
-                        <th className="px-4 py-2 text-left font-medium text-gray-600">班級</th>
-                        <th className="px-4 py-2 text-left font-medium text-gray-600">職位</th>
-                        <th className="px-4 py-2 text-left font-medium text-gray-600">身份</th>
+                        <th className="px-3 py-2 md:px-4 text-left font-medium text-gray-600">姓名</th>
+                        <th className="px-3 py-2 md:px-4 text-left font-medium text-gray-600">學號</th>
+                        <th className="px-3 py-2 md:px-4 text-left font-medium text-gray-600">班級</th>
+                        <th className="px-3 py-2 md:px-4 text-left font-medium text-gray-600">職位</th>
+                        <th className="px-3 py-2 md:px-4 text-left font-medium text-gray-600">身份</th>
                         {cg.isLeader && (
-                          <th className="px-4 py-2 text-left font-medium text-gray-600">操作</th>
+                          <th className="px-3 py-2 md:px-4 text-left font-medium text-gray-600">操作</th>
                         )}
                       </tr>
                     </thead>
@@ -253,10 +253,10 @@ export default function MyGroupsPage() {
                           key={member.studentGroupId}
                           className={member.isLeader ? 'bg-yellow-50' : ''}
                         >
-                          <td className="px-4 py-2">{member.name}</td>
-                          <td className="px-4 py-2 text-gray-600">{member.studentId}</td>
-                          <td className="px-4 py-2 text-gray-600">{member.class}班</td>
-                          <td className="px-4 py-2">
+                          <td className="px-3 py-2 md:px-4">{member.name}</td>
+                          <td className="px-3 py-2 md:px-4 text-gray-600">{member.studentId}</td>
+                          <td className="px-3 py-2 md:px-4 text-gray-600">{member.class}班</td>
+                          <td className="px-3 py-2 md:px-4">
                             {editingMember === member.studentGroupId ? (
                               <div className="flex items-center gap-1">
                                 <select
@@ -299,7 +299,7 @@ export default function MyGroupsPage() {
                               </span>
                             )}
                           </td>
-                          <td className="px-4 py-2">
+                          <td className="px-3 py-2 md:px-4">
                             {member.isLeader && (
                               <span className="text-xs bg-yellow-200 text-yellow-800 px-1.5 py-0.5 rounded">
                                 組長
@@ -307,8 +307,8 @@ export default function MyGroupsPage() {
                             )}
                           </td>
                           {cg.isLeader && (
-                            <td className="px-4 py-2">
-                              <div className="flex items-center gap-2">
+                            <td className="px-3 py-2 md:px-4">
+                              <div className="flex flex-wrap items-center gap-2">
                                 {editingMember !== member.studentGroupId && (
                                   <button
                                     onClick={() => {
@@ -351,7 +351,7 @@ export default function MyGroupsPage() {
               /* 未分組 */
               <div className="space-y-3">
                 <p className="text-gray-500 text-sm">你在此課程尚未加入分組</p>
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-3">
                   <button
                     onClick={() =>
                       handleAction('create', { courseId: cg.courseId }, `create-${cg.courseId}`)

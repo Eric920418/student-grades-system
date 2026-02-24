@@ -101,7 +101,7 @@ export default function NewStudentPage() {
             ← 返回學生列表
           </Link>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900">新增學生</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">新增學生</h1>
       </div>
 
       {error && (
@@ -110,7 +110,7 @@ export default function NewStudentPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
@@ -178,7 +178,7 @@ export default function NewStudentPage() {
             />
           </div>
 
-          <div className="flex space-x-4 pt-4">
+          <div className="flex flex-wrap gap-3 pt-4">
             <button
               type="submit"
               disabled={loading}

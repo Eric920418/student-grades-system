@@ -30,7 +30,7 @@ export default function GroupsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [courseName, setCourseName] = useState<string>('');
-  
+
   const searchParams = useSearchParams();
   const courseId = searchParams.get('courseId');
 
@@ -41,26 +41,26 @@ export default function GroupsPage() {
   const fetchGroups = async () => {
     try {
       setLoading(true);
-      
+
       // 建構查詢參數
       const params = new URLSearchParams();
       if (courseId) params.append('courseId', courseId);
-      
+
       const url = `/api/groups${params.toString() ? '?' + params.toString() : ''}`;
       const response = await fetch(url);
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.error || '獲取分組列表失敗');
       }
-      
+
       setGroups(data);
-      
+
       // 設定課程名稱
       if (data.length > 0 && data[0].course) {
         setCourseName(data[0].course.name);
       }
-      
+
       setError(null);
     } catch (error) {
       setError(error instanceof Error ? error.message : '獲取分組列表失敗');
@@ -79,13 +79,13 @@ export default function GroupsPage() {
       const response = await fetch(`/api/groups/${id}`, {
         method: 'DELETE',
       });
-      
+
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.error || '刪除分組失敗');
       }
-      
+
       await fetchGroups();
     } catch (error) {
       setError(error instanceof Error ? error.message : '刪除分組失敗');
@@ -103,9 +103,9 @@ export default function GroupsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
             分組管理
             {courseName && <span className="text-lg text-gray-600 ml-2">- {courseName}</span>}
           </h1>
@@ -120,7 +120,7 @@ export default function GroupsPage() {
         </div>
         <Link
           href={`/groups/new${courseId ? `?courseId=${courseId}` : ''}`}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-center"
         >
           新增分組
         </Link>

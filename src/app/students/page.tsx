@@ -38,7 +38,7 @@ export default function StudentsPage() {
   const [classFilter, setClassFilter] = useState<string>('all');
   const [courseName, setCourseName] = useState<string>('');
   const [hasClassDivision, setHasClassDivision] = useState<boolean>(true);
-  
+
   const searchParams = useSearchParams();
   const courseId = searchParams.get('courseId');
 
@@ -60,22 +60,22 @@ export default function StudentsPage() {
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      
+
       // 建構查詢參數
       const params = new URLSearchParams();
       if (classFilter !== 'all') params.append('class', classFilter);
       if (courseId) params.append('courseId', courseId);
-      
+
       const url = `/api/students${params.toString() ? '?' + params.toString() : ''}`;
       const response = await fetch(url);
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.error || '獲取學生列表失敗');
       }
-      
+
       setStudents(data);
-      
+
       setError(null);
     } catch (error) {
       setError(error instanceof Error ? error.message : '獲取學生列表失敗');
@@ -94,13 +94,13 @@ export default function StudentsPage() {
       const response = await fetch(`/api/students/${id}`, {
         method: 'DELETE',
       });
-      
+
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.error || '刪除學生失敗');
       }
-      
+
       await fetchStudents();
     } catch (error) {
       setError(error instanceof Error ? error.message : '刪除學生失敗');
@@ -118,9 +118,9 @@ export default function StudentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
             學生管理
             {courseName && <span className="text-lg text-gray-600 ml-2">- {courseName}</span>}
           </h1>
@@ -172,95 +172,143 @@ export default function StudentsPage() {
             尚無學生資料，請先新增學生
           </div>
         ) : (
-          <table className="min-w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  學號
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  姓名
-                </th>
-                {hasClassDivision && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    班級
-                  </th>
-                )}
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Email
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  分組
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  成績數量
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  操作
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+          <>
+            {/* 手機版：卡片列表 */}
+            <div className="md:hidden divide-y divide-gray-200">
               {students.map((student) => (
-                <tr key={student.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {student.studentId}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {student.name}
-                  </td>
-                  {hasClassDivision && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                <div key={student.id} className="p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="font-medium text-gray-900">{student.name}</span>
+                      <span className="text-sm text-gray-500 ml-2">{student.studentId}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Link
+                        href={`/students/${student.id}/edit`}
+                        className="text-blue-600 hover:text-blue-900 text-sm"
+                      >
+                        編輯
+                      </Link>
+                      <button
+                        onClick={() => deleteStudent(student.id, student.name)}
+                        className="text-red-600 hover:text-red-900 text-sm"
+                      >
+                        刪除
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-sm">
+                    {hasClassDivision && (
+                      <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${
                         student.class === 'A' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
                       }`}>
                         {student.class}班
                       </span>
-                    </td>
-                  )}
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {student.email || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {student.studentGroups.length > 0 
-                      ? (
-                          <div className="space-y-1">
-                            {student.studentGroups.map((sg, index) => (
-                              <div key={index} className="flex items-center space-x-2">
-                                <span>{sg.group.name}</span>
-                                {sg.role && (
-                                  <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">
-                                    {sg.role}
-                                  </span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )
-                      : '未分組'
-                    }
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {student.grades.length} 項
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                    <Link
-                      href={`/students/${student.id}/edit`}
-                      className="text-blue-600 hover:text-blue-900 transition-colors"
-                    >
-                      編輯
-                    </Link>
-                    <button
-                      onClick={() => deleteStudent(student.id, student.name)}
-                      className="text-red-600 hover:text-red-900 transition-colors"
-                    >
-                      刪除
-                    </button>
-                  </td>
-                </tr>
+                    )}
+                    <span className="text-gray-500">
+                      {student.studentGroups.length > 0
+                        ? student.studentGroups.map(sg => sg.group.name).join(', ')
+                        : '未分組'}
+                    </span>
+                    <span className="text-gray-400">{student.grades.length} 項成績</span>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+
+            {/* 桌面版：表格 */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="min-w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      學號
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      姓名
+                    </th>
+                    {hasClassDivision && (
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        班級
+                      </th>
+                    )}
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Email
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      分組
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      成績數量
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      操作
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {students.map((student) => (
+                    <tr key={student.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {student.studentId}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {student.name}
+                      </td>
+                      {hasClassDivision && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            student.class === 'A' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+                          }`}>
+                            {student.class}班
+                          </span>
+                        </td>
+                      )}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {student.email || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {student.studentGroups.length > 0
+                          ? (
+                              <div className="space-y-1">
+                                {student.studentGroups.map((sg, index) => (
+                                  <div key={index} className="flex items-center space-x-2">
+                                    <span>{sg.group.name}</span>
+                                    {sg.role && (
+                                      <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">
+                                        {sg.role}
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )
+                          : '未分組'
+                        }
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {student.grades.length} 項
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                        <Link
+                          href={`/students/${student.id}/edit`}
+                          className="text-blue-600 hover:text-blue-900 transition-colors"
+                        >
+                          編輯
+                        </Link>
+                        <button
+                          onClick={() => deleteStudent(student.id, student.name)}
+                          className="text-red-600 hover:text-red-900 transition-colors"
+                        >
+                          刪除
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>
