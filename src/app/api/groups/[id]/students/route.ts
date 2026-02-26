@@ -63,6 +63,27 @@ export async function POST(
       );
     }
 
+    // 檢查新加入的學生是否已在同課程的其他組別
+    const newStudentIds = studentIds;
+    const conflicting = await prisma.studentGroup.findMany({
+      where: {
+        studentId: { in: newStudentIds },
+        groupId: { not: params.id }, // 排除本組
+        group: { courseId: group.courseId },
+      },
+      include: { student: true, group: true },
+    });
+
+    if (conflicting.length > 0) {
+      const details = conflicting.map(
+        (sg) => `${sg.student.name}（${sg.student.studentId}）已在${sg.group.name}`
+      );
+      return NextResponse.json(
+        { error: `以下學生已有其他組別：\n${details.join('\n')}` },
+        { status: 400 }
+      );
+    }
+
     // 先刪除現有的分組關係
     await prisma.studentGroup.deleteMany({
       where: { groupId: params.id }
