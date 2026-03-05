@@ -84,21 +84,22 @@ export async function POST(
       );
     }
 
-    // 先刪除現有的分組關係
-    await prisma.studentGroup.deleteMany({
-      where: { groupId: params.id }
-    });
-
-    // 批量創建新的分組關係（包含職位）
-    if (students.length > 0) {
-      await prisma.studentGroup.createMany({
-        data: students.map((student: { id: string; role?: string }) => ({
-          studentId: student.id,
-          groupId: params.id,
-          role: student.role || null
-        }))
+    // 原子操作：刪除現有分組關係 + 創建新的
+    await prisma.$transaction(async (tx) => {
+      await tx.studentGroup.deleteMany({
+        where: { groupId: params.id }
       });
-    }
+
+      if (students.length > 0) {
+        await tx.studentGroup.createMany({
+          data: students.map((student: { id: string; role?: string }) => ({
+            studentId: student.id,
+            groupId: params.id,
+            role: student.role || null
+          }))
+        });
+      }
+    });
 
     // 返回更新後的分組資訊
     const updatedGroup = await prisma.group.findUnique({

@@ -42,13 +42,20 @@ export async function POST(request: NextRequest) {
 
       if (students.length > 0) {
         const s = students[0];
-        await prisma.account.create({
-          data: {
-            studentId: trimmedId,
-            name: s.name,
-            class: s.class,
-          },
-        });
+        try {
+          await prisma.account.create({
+            data: {
+              studentId: trimmedId,
+              name: s.name,
+              class: s.class,
+            },
+          });
+        } catch (e: unknown) {
+          // P2002 = unique constraint violation，代表另一個請求已建立 Account，繼續簽 token
+          if (!(e instanceof Error && 'code' in e && (e as { code: string }).code === 'P2002')) {
+            throw e;
+          }
+        }
 
         const token = await signToken({
           role: 'student',

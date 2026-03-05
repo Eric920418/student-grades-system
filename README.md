@@ -120,9 +120,14 @@ cp .env.example .env
 
 編輯 `.env` 文件：
 ```
-DATABASE_URL="postgresql://username:password@host/database?sslmode=require"
+# 連線池 URL（Vercel 部署時走 Neon pooler，加上 pgbouncer=true 和 connection_limit=5）
+DATABASE_URL="postgresql://username:password@host/database?sslmode=require&pgbouncer=true&connection_limit=5"
+# 直連 URL（用於 Prisma migrate/push，不走連線池）
+DIRECT_URL="postgresql://username:password@host/database?sslmode=require"
 JWT_SECRET="your-secret-key-here"
 ```
+
+> **Neon 用戶注意**：`DATABASE_URL` 使用 pooler endpoint（通常含 `-pooler` 後綴），`DIRECT_URL` 使用直連 endpoint。詳見 [Neon 文件](https://neon.tech/docs/guides/prisma)。
 
 ### Excel學生名單匯入
 系統提供專用腳本匯入Excel格式的學生名單：
@@ -365,13 +370,17 @@ src/
 1. 將專案推送至 GitHub
 2. 在 Vercel 中導入專案
 3. 設置環境變數：
-   - `DATABASE_URL`（Neon 連接字串）
+   - `DATABASE_URL`（Neon pooler 連接字串，加上 `?pgbouncer=true&connection_limit=5`）
+   - `DIRECT_URL`（Neon 直連字串，用於 Prisma migration）
    - `JWT_SECRET`（JWT 密鑰，任意長字串）
 4. 部署完成
 
 ### 注意事項
 - 資料庫使用 Neon PostgreSQL 雲端服務
-- 部署前請確保 `DATABASE_URL` 和 `JWT_SECRET` 環境變數已正確設置
+- 部署前請確保 `DATABASE_URL`、`DIRECT_URL` 和 `JWT_SECRET` 環境變數已正確設置
+- `DATABASE_URL` 應使用 Neon 的 pooler endpoint，`DIRECT_URL` 使用直連 endpoint
+- 生產環境已關閉 Prisma query log，僅記錄 error 級別日誌
+- 關鍵 API（登入、註冊、分組操作）已加入併發保護，支援 70 人同時使用
 - Neon 免費額度足夠小型專案使用
 
 ---

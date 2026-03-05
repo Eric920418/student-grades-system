@@ -157,16 +157,32 @@ async function handleJoinCourse(body: { courseId?: string }, loginStudentId: str
   }
 
   // 建立 Student 記錄
-  await prisma.student.create({
-    data: {
-      studentId: loginStudentId,
-      name: account.name,
-      class: account.class,
-      courseId,
-    },
-  });
+  try {
+    await prisma.student.create({
+      data: {
+        studentId: loginStudentId,
+        name: account.name,
+        class: account.class,
+        courseId,
+      },
+    });
+  } catch (e: unknown) {
+    if (e instanceof Error && 'code' in e && (e as { code: string }).code === 'P2002') {
+      return NextResponse.json({ error: '你已經在此課程中' }, { status: 400 });
+    }
+    throw e;
+  }
 
   return NextResponse.json({ success: true, message: `已加入「${course.name}」` });
+}
+
+// 業務錯誤，不需要重試
+class AppError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
 }
 
 // 建立新分組（自動成為組長）
@@ -176,56 +192,74 @@ async function handleCreate(body: { courseId?: string }, loginStudentId: string)
     return NextResponse.json({ error: '請指定課程' }, { status: 400 });
   }
 
-  // 找到此學號在此課程的學生記錄
-  const student = await prisma.student.findFirst({
-    where: { studentId: loginStudentId, courseId },
-  });
-  if (!student) {
-    return NextResponse.json({ error: '你不在此課程中' }, { status: 400 });
+  const MAX_RETRIES = 3;
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      const group = await prisma.$transaction(async (tx) => {
+        // 找到此學號在此課程的學生記錄
+        const student = await tx.student.findFirst({
+          where: { studentId: loginStudentId, courseId },
+        });
+        if (!student) {
+          throw new AppError('你不在此課程中', 400);
+        }
+
+        // 檢查是否已有分組
+        const existing = await tx.studentGroup.findFirst({
+          where: { studentId: student.id, group: { courseId } },
+        });
+        if (existing) {
+          throw new AppError('你在此課程已有分組，請先離開現有分組', 400);
+        }
+
+        // 自動生成分組名稱
+        const existingGroups = await tx.group.findMany({
+          where: { courseId },
+          select: { name: true },
+        });
+        const existingNumbers = existingGroups
+          .map(g => g.name.match(/第(\d+)組/))
+          .filter(Boolean)
+          .map(match => parseInt(match![1]))
+          .sort((a, b) => a - b);
+
+        let nextNumber = 1;
+        for (const num of existingNumbers) {
+          if (num === nextNumber) nextNumber++;
+          else break;
+        }
+
+        return await tx.group.create({
+          data: {
+            name: `第${nextNumber}組`,
+            courseId,
+            studentGroups: {
+              create: {
+                studentId: student.id,
+                isLeader: true,
+              },
+            },
+          },
+          include: {
+            studentGroups: { include: { student: true } },
+          },
+        });
+      });
+
+      return NextResponse.json({ success: true, group }, { status: 201 });
+    } catch (e: unknown) {
+      if (e instanceof AppError) {
+        return NextResponse.json({ error: e.message }, { status: e.status });
+      }
+      // P2002 = 組名衝突，重試
+      if (e instanceof Error && 'code' in e && (e as { code: string }).code === 'P2002' && attempt < MAX_RETRIES - 1) {
+        continue;
+      }
+      throw e;
+    }
   }
 
-  // 檢查是否已有分組
-  const existing = await prisma.studentGroup.findFirst({
-    where: { studentId: student.id, group: { courseId } },
-  });
-  if (existing) {
-    return NextResponse.json({ error: '你在此課程已有分組，請先離開現有分組' }, { status: 400 });
-  }
-
-  // 自動生成分組名稱
-  const existingGroups = await prisma.group.findMany({
-    where: { courseId },
-    select: { name: true },
-  });
-  const existingNumbers = existingGroups
-    .map(g => g.name.match(/第(\d+)組/))
-    .filter(Boolean)
-    .map(match => parseInt(match![1]))
-    .sort((a, b) => a - b);
-
-  let nextNumber = 1;
-  for (const num of existingNumbers) {
-    if (num === nextNumber) nextNumber++;
-    else break;
-  }
-
-  const group = await prisma.group.create({
-    data: {
-      name: `第${nextNumber}組`,
-      courseId,
-      studentGroups: {
-        create: {
-          studentId: student.id,
-          isLeader: true,
-        },
-      },
-    },
-    include: {
-      studentGroups: { include: { student: true } },
-    },
-  });
-
-  return NextResponse.json({ success: true, group }, { status: 201 });
+  return NextResponse.json({ error: '建立分組失敗，請重試' }, { status: 500 });
 }
 
 // 加入現有分組
@@ -258,9 +292,16 @@ async function handleJoin(body: { groupId?: string }, loginStudentId: string) {
     return NextResponse.json({ error: '你在此課程已有分組，請先離開現有分組' }, { status: 400 });
   }
 
-  await prisma.studentGroup.create({
-    data: { studentId: student.id, groupId, isLeader: false },
-  });
+  try {
+    await prisma.studentGroup.create({
+      data: { studentId: student.id, groupId, isLeader: false },
+    });
+  } catch (e: unknown) {
+    if (e instanceof Error && 'code' in e && (e as { code: string }).code === 'P2002') {
+      return NextResponse.json({ error: '你已經在此分組中' }, { status: 400 });
+    }
+    throw e;
+  }
 
   return NextResponse.json({ success: true });
 }

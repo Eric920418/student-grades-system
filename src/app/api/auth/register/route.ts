@@ -71,33 +71,55 @@ export async function POST(request: NextRequest) {
     if (existingStudents.length > 0) {
       // 從已有的 Student 資料建立 Account
       const s = existingStudents[0];
-      account = await prisma.account.create({
-        data: {
-          studentId: trimmedId,
-          name: s.name,
-          class: s.class,
-        },
-      });
+      try {
+        account = await prisma.account.create({
+          data: {
+            studentId: trimmedId,
+            name: s.name,
+            class: s.class,
+          },
+        });
+      } catch (e: unknown) {
+        if (e instanceof Error && 'code' in e && (e as { code: string }).code === 'P2002') {
+          return NextResponse.json({ error: '此學號已註冊' }, { status: 409 });
+        }
+        throw e;
+      }
       message = '帳號已自動建立（從既有學生資料）';
     } else {
       // 全新註冊：建立 Account + Student
-      account = await prisma.account.create({
-        data: {
-          studentId: trimmedId,
-          name: trimmedName,
-          class: validClass,
-        },
-      });
+      try {
+        account = await prisma.account.create({
+          data: {
+            studentId: trimmedId,
+            name: trimmedName,
+            class: validClass,
+          },
+        });
+      } catch (e: unknown) {
+        if (e instanceof Error && 'code' in e && (e as { code: string }).code === 'P2002') {
+          return NextResponse.json({ error: '此學號已註冊' }, { status: 409 });
+        }
+        throw e;
+      }
 
       // 同時建立該課程的 Student 記錄
-      await prisma.student.create({
-        data: {
-          studentId: trimmedId,
-          name: trimmedName,
-          class: validClass,
-          courseId,
-        },
-      });
+      try {
+        await prisma.student.create({
+          data: {
+            studentId: trimmedId,
+            name: trimmedName,
+            class: validClass,
+            courseId,
+          },
+        });
+      } catch (e: unknown) {
+        if (e instanceof Error && 'code' in e && (e as { code: string }).code === 'P2002') {
+          // Student 已存在（另一個請求已建立），不影響流程
+        } else {
+          throw e;
+        }
+      }
 
       message = `註冊成功，已加入「${course.name}」`;
     }
