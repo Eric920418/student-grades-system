@@ -159,7 +159,7 @@ export default function ManageGroupStudentsPage({ params }: { params: { id: stri
             ← 返回首頁
           </Link>
           <Link
-            href="/groups"
+            href={`/groups${group?.courseId ? `?courseId=${group.courseId}` : ''}`}
             className="text-gray-500 hover:text-gray-700 transition-colors"
           >
             ← 返回分組列表
@@ -254,7 +254,7 @@ export default function ManageGroupStudentsPage({ params }: { params: { id: stri
             {saving ? '儲存中...' : '儲存分組'}
           </button>
           <Link
-            href="/groups"
+            href={`/groups${group?.courseId ? `?courseId=${group.courseId}` : ''}`}
             className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400 transition-colors"
           >
             取消
