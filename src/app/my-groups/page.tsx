@@ -243,15 +243,17 @@ export default function MyGroupsPage() {
                     {cg.group.name}
                     <span className="text-sm text-gray-500 ml-2">({cg.group.members.length}/5 人)</span>
                   </h3>
-                  <button
-                    onClick={() =>
-                      handleAction('leave', { groupId: cg.group!.id }, `leave-${cg.courseId}`)
-                    }
-                    disabled={actionLoading === `leave-${cg.courseId}`}
-                    className="text-sm text-red-600 hover:text-red-800 disabled:text-gray-400"
-                  >
-                    {actionLoading === `leave-${cg.courseId}` ? '處理中...' : '離開分組'}
-                  </button>
+                  {cg.allowStudentGrouping !== false && (
+                    <button
+                      onClick={() =>
+                        handleAction('leave', { groupId: cg.group!.id }, `leave-${cg.courseId}`)
+                      }
+                      disabled={actionLoading === `leave-${cg.courseId}`}
+                      className="text-sm text-red-600 hover:text-red-800 disabled:text-gray-400"
+                    >
+                      {actionLoading === `leave-${cg.courseId}` ? '處理中...' : '離開分組'}
+                    </button>
+                  )}
                 </div>
 
                 {/* 成員列表 */}
