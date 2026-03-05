@@ -63,7 +63,12 @@ export default function ManageGroupStudentsPage({ params }: { params: { id: stri
       }
 
       setGroup(groupData);
-      setAllStudents(studentsData);
+      // 只保留無組別的學生 + 本組現有成員
+      const currentMemberIds = new Set(groupData.studentGroups.map((sg: any) => sg.student.id));
+      const filtered = studentsData.filter((s: Student) =>
+        currentMemberIds.has(s.id) || !s.studentGroups || s.studentGroups.length === 0
+      );
+      setAllStudents(filtered);
       setSelectedStudents(groupData.studentGroups.map((sg: any) => ({
         id: sg.student.id,
         role: sg.role
@@ -191,12 +196,10 @@ export default function ManageGroupStudentsPage({ params }: { params: { id: stri
             allStudents.map((student) => {
               const isSelected = selectedStudents.some(s => s.id === student.id);
               const selectedStudent = selectedStudents.find(s => s.id === student.id);
-              const otherGroup = student.studentGroups?.find(sg => sg.group.id !== params.id);
-
               return (
                 <div
                   key={student.id}
-                  className={`p-3 border rounded-lg hover:bg-gray-50 ${otherGroup && !isSelected ? 'border-orange-200 bg-orange-50/50' : 'border-gray-200'}`}
+                  className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
                 >
                   <div className="flex items-center space-x-3 mb-3">
                     <input
@@ -212,11 +215,6 @@ export default function ManageGroupStudentsPage({ params }: { params: { id: stri
                           <span className="font-medium text-gray-900">{student.name}</span>
                           <span className="text-gray-500 ml-2">({student.studentId})</span>
                         </div>
-                        {otherGroup && (
-                          <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full">
-                            目前在 {otherGroup.group.name}
-                          </span>
-                        )}
                       </div>
                     </label>
                   </div>
