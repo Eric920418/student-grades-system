@@ -30,8 +30,22 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 公開路由放行
+  // 公開路由放行（但已登入用戶訪問 /login 要 redirect）
   if (PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))) {
+    if (pathname === '/login') {
+      const token = request.cookies.get(COOKIE_NAME)?.value;
+      if (token) {
+        try {
+          const result = await jwtVerify(token, getJwtSecret());
+          const role = (result.payload as { role: string }).role;
+          return NextResponse.redirect(
+            new URL(role === 'admin' ? '/' : '/my-groups', request.url)
+          );
+        } catch {
+          // token 無效，繼續顯示登入頁
+        }
+      }
+    }
     return NextResponse.next();
   }
 
