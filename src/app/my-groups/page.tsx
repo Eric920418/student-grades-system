@@ -34,6 +34,7 @@ interface AvailableGroup {
   id: string;
   name: string;
   memberCount: number;
+  leaderName: string | null;
 }
 
 interface AvailableCourse {
@@ -115,11 +116,15 @@ export default function MyGroupsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setAvailableGroups(
-        data.map((g: { id: string; name: string; studentGroups: unknown[] }) => ({
-          id: g.id,
-          name: g.name,
-          memberCount: g.studentGroups?.length || 0,
-        }))
+        data.map((g: { id: string; name: string; studentGroups: { isLeader: boolean; student: { name: string } }[] }) => {
+          const leader = g.studentGroups?.find((sg) => sg.isLeader);
+          return {
+            id: g.id,
+            name: g.name,
+            memberCount: g.studentGroups?.length || 0,
+            leaderName: leader?.student.name || null,
+          };
+        })
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : '取得可用分組失敗');
@@ -395,6 +400,9 @@ export default function MyGroupsPage() {
                           >
                             <span className="text-sm">
                               {g.name}
+                              {g.leaderName && (
+                                <span className="text-gray-700 ml-1.5">- {g.leaderName}</span>
+                              )}
                               <span className="text-gray-500 ml-2">({g.memberCount} 人)</span>
                             </span>
                             <button
