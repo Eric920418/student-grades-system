@@ -109,6 +109,8 @@ export async function POST(request: NextRequest) {
         return handleJoinCourse(body, user.studentId);
       case 'leave':
         return handleLeave(body, user.studentId);
+      case 'leave-course':
+        return handleLeaveCourse(body, user.studentId);
       case 'update-role':
         return handleUpdateRole(body, user.studentId);
       case 'set-leader':
@@ -294,27 +296,86 @@ async function handleLeave(body: { groupId?: string }, loginStudentId: string) {
 
   const wasLeader = membership.isLeader;
 
-  // 刪除成員資格
-  await prisma.studentGroup.delete({ where: { id: membership.id } });
-
-  // 如果是組長離開，指派新組長
   if (wasLeader) {
+    // 先查詢是否有其他成員
     const remaining = await prisma.studentGroup.findFirst({
-      where: { groupId },
+      where: { groupId, id: { not: membership.id } },
       orderBy: { createdAt: 'asc' },
     });
+
     if (remaining) {
-      await prisma.studentGroup.update({
-        where: { id: remaining.id },
-        data: { isLeader: true },
-      });
+      // 有其他成員：刪除自己 + 指派新組長（原子操作）
+      await prisma.$transaction([
+        prisma.studentGroup.delete({ where: { id: membership.id } }),
+        prisma.studentGroup.update({
+          where: { id: remaining.id },
+          data: { isLeader: true },
+        }),
+      ]);
     } else {
-      // 沒有成員了，刪除分組
-      await prisma.group.delete({ where: { id: groupId } });
+      // 沒有其他成員：刪除自己 + 刪除分組（原子操作）
+      await prisma.$transaction([
+        prisma.studentGroup.delete({ where: { id: membership.id } }),
+        prisma.group.delete({ where: { id: groupId } }),
+      ]);
     }
+  } else {
+    await prisma.studentGroup.delete({ where: { id: membership.id } });
   }
 
   return NextResponse.json({ success: true });
+}
+
+// 退出課程（刪除該課程的 Student 記錄，連帶移除分組和成績）
+async function handleLeaveCourse(body: { courseId?: string }, loginStudentId: string) {
+  const { courseId } = body;
+  if (!courseId) {
+    return NextResponse.json({ error: '請指定課程' }, { status: 400 });
+  }
+
+  const student = await prisma.student.findFirst({
+    where: { studentId: loginStudentId, courseId },
+  });
+  if (!student) {
+    return NextResponse.json({ error: '你不在此課程中' }, { status: 400 });
+  }
+
+  // 檢查是否在分組中，且是組長
+  const membership = await prisma.studentGroup.findFirst({
+    where: { studentId: student.id, group: { courseId } },
+    include: { group: true },
+  });
+
+  if (membership?.isLeader) {
+    // 組長退出課程：先處理組長轉移
+    const remaining = await prisma.studentGroup.findFirst({
+      where: { groupId: membership.groupId, id: { not: membership.id } },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (remaining) {
+      // 有其他成員：指派新組長，再刪除 Student（cascade 刪除 StudentGroup、Grade）
+      await prisma.$transaction([
+        prisma.studentGroup.update({
+          where: { id: remaining.id },
+          data: { isLeader: true },
+        }),
+        prisma.student.delete({ where: { id: student.id } }),
+      ]);
+    } else {
+      // 沒有其他成員：刪除分組 + Student
+      await prisma.$transaction([
+        prisma.studentGroup.delete({ where: { id: membership.id } }),
+        prisma.group.delete({ where: { id: membership.groupId } }),
+        prisma.student.delete({ where: { id: student.id } }),
+      ]);
+    }
+  } else {
+    // 非組長或沒有分組：直接刪除 Student（cascade 處理其餘）
+    await prisma.student.delete({ where: { id: student.id } });
+  }
+
+  return NextResponse.json({ success: true, message: '已退出課程' });
 }
 
 // 更新成員職位（需為同組組長）
