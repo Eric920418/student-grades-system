@@ -24,6 +24,7 @@ model Course {
   code        String?  // 課程代碼：IC335
   description      String?  // 課程描述
   hasClassDivision Boolean  @default(false) // 是否啟用 A/B 分班
+  allowStudentGrouping Boolean  @default(true) // 是否允許學生自助分組
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

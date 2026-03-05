@@ -10,6 +10,7 @@ interface Course {
   code?: string;
   description?: string;
   hasClassDivision?: boolean;
+  allowStudentGrouping?: boolean;
   _count?: {
     students: number;
     groups: number;
@@ -38,6 +39,7 @@ export default function HomePage() {
     code: '',
     description: '',
     hasClassDivision: false,
+    allowStudentGrouping: true,
   });
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -76,7 +78,7 @@ export default function HomePage() {
 
   const openCreateModal = () => {
     setEditingCourse(null);
-    setFormData({ name: '', code: '', description: '', hasClassDivision: false });
+    setFormData({ name: '', code: '', description: '', hasClassDivision: false, allowStudentGrouping: true });
     setFormError(null);
     setShowCourseModal(true);
   };
@@ -88,6 +90,7 @@ export default function HomePage() {
       code: course.code || '',
       description: course.description || '',
       hasClassDivision: course.hasClassDivision || false,
+      allowStudentGrouping: course.allowStudentGrouping !== false,
     });
     setFormError(null);
     setShowCourseModal(true);
@@ -284,11 +287,18 @@ export default function HomePage() {
                   <span>分組: {course._count?.groups || 0}</span>
                   <span>項目: {course._count?.gradeItems || 0}</span>
                 </div>
-                {course.hasClassDivision && (
-                  <div className="mt-2">
-                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
-                      A/B 分班
-                    </span>
+                {(course.hasClassDivision || course.allowStudentGrouping === false) && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {course.hasClassDivision && (
+                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                        A/B 分班
+                      </span>
+                    )}
+                    {course.allowStudentGrouping === false && (
+                      <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
+                        學生分組已關閉
+                      </span>
+                    )}
                   </div>
                 )}
               </button>
@@ -410,6 +420,18 @@ export default function HomePage() {
                 />
                 <label htmlFor="hasClassDivision" className="text-sm font-medium text-gray-700">
                   啟用 A/B 分班
+                </label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="allowStudentGrouping"
+                  checked={formData.allowStudentGrouping}
+                  onChange={(e) => setFormData({ ...formData, allowStudentGrouping: e.target.checked })}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="allowStudentGrouping" className="text-sm font-medium text-gray-700">
+                  允許學生自助分組
                 </label>
               </div>
               <div className="flex justify-end gap-3 pt-2">

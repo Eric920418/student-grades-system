@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
         courseId: student.courseId,
         courseName: student.course.name,
         courseCode: student.course.code,
+        allowStudentGrouping: student.course.allowStudentGrouping,
         studentDbId: student.id,
         hasGroup: !!group,
         group: group ? {
@@ -194,6 +195,15 @@ async function handleCreate(body: { courseId?: string }, loginStudentId: string)
     return NextResponse.json({ error: '請指定課程' }, { status: 400 });
   }
 
+  // 檢查課程是否允許學生自助分組
+  const course = await prisma.course.findUnique({
+    where: { id: courseId },
+    select: { allowStudentGrouping: true },
+  });
+  if (course && !course.allowStudentGrouping) {
+    return NextResponse.json({ error: '老師已關閉此課程的自助分組功能' }, { status: 403 });
+  }
+
   const MAX_RETRIES = 3;
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
@@ -277,6 +287,15 @@ async function handleJoin(body: { groupId?: string }, loginStudentId: string) {
   });
   if (!group) {
     return NextResponse.json({ error: '分組不存在' }, { status: 404 });
+  }
+
+  // 檢查課程是否允許學生自助分組
+  const joinCourse = await prisma.course.findUnique({
+    where: { id: group.courseId },
+    select: { allowStudentGrouping: true },
+  });
+  if (joinCourse && !joinCourse.allowStudentGrouping) {
+    return NextResponse.json({ error: '老師已關閉此課程的自助分組功能' }, { status: 403 });
   }
 
   const student = await prisma.student.findFirst({

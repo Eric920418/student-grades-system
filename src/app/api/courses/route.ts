@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { name, code, description, hasClassDivision } = body;
+    const { name, code, description, hasClassDivision, allowStudentGrouping } = body;
 
     if (!name) {
       return NextResponse.json(
@@ -61,6 +61,7 @@ export async function POST(request: NextRequest) {
         code: code?.trim() || null,
         description: description?.trim() || null,
         hasClassDivision: hasClassDivision === true,
+        allowStudentGrouping: allowStudentGrouping !== false,
       }
     });
 

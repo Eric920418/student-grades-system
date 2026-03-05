@@ -9,12 +9,19 @@ interface Student {
   name: string;
   studentId: string;
   email?: string;
+  studentGroups: Array<{
+    group: {
+      id: string;
+      name: string;
+    };
+  }>;
 }
 
 interface Group {
   id: string;
   name: string;
   description?: string;
+  courseId: string;
   studentGroups: Array<{
     student: Student;
     role?: string;
@@ -38,19 +45,18 @@ export default function ManageGroupStudentsPage({ params }: { params: { id: stri
     try {
       setLoading(true);
       
-      const [groupResponse, studentsResponse] = await Promise.all([
-        fetch(`/api/groups/${params.id}`),
-        fetch('/api/students')
-      ]);
-
-      const [groupData, studentsData] = await Promise.all([
-        groupResponse.json(),
-        studentsResponse.json()
-      ]);
+      // 先取得分組資料以獲取 courseId
+      const groupResponse = await fetch(`/api/groups/${params.id}`);
+      const groupData = await groupResponse.json();
 
       if (!groupResponse.ok) {
         throw new Error(groupData.error || '獲取分組資料失敗');
       }
+
+      // 用 courseId 過濾同課程的學生
+      const studentsResponse = await fetch(`/api/students?courseId=${groupData.courseId}`);
+
+      const studentsData = await studentsResponse.json();
 
       if (!studentsResponse.ok) {
         throw new Error(studentsData.error || '獲取學生列表失敗');
@@ -111,7 +117,7 @@ export default function ManageGroupStudentsPage({ params }: { params: { id: stri
         throw new Error(data.error || '分配學生失敗');
       }
 
-      router.push('/groups');
+      router.push(`/groups${group?.courseId ? `?courseId=${group.courseId}` : ''}`);
     } catch (error) {
       setError(error instanceof Error ? error.message : '分配學生失敗');
       console.error('分配學生錯誤:', error);
@@ -185,11 +191,12 @@ export default function ManageGroupStudentsPage({ params }: { params: { id: stri
             allStudents.map((student) => {
               const isSelected = selectedStudents.some(s => s.id === student.id);
               const selectedStudent = selectedStudents.find(s => s.id === student.id);
-              
+              const otherGroup = student.studentGroups?.find(sg => sg.group.id !== params.id);
+
               return (
                 <div
                   key={student.id}
-                  className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
+                  className={`p-3 border rounded-lg hover:bg-gray-50 ${otherGroup && !isSelected ? 'border-orange-200 bg-orange-50/50' : 'border-gray-200'}`}
                 >
                   <div className="flex items-center space-x-3 mb-3">
                     <input
@@ -205,8 +212,10 @@ export default function ManageGroupStudentsPage({ params }: { params: { id: stri
                           <span className="font-medium text-gray-900">{student.name}</span>
                           <span className="text-gray-500 ml-2">({student.studentId})</span>
                         </div>
-                        {student.email && (
-                          <span className="text-sm text-gray-500">{student.email}</span>
+                        {otherGroup && (
+                          <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full">
+                            目前在 {otherGroup.group.name}
+                          </span>
                         )}
                       </div>
                     </label>

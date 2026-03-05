@@ -71,33 +71,25 @@ export async function POST(
       );
     }
 
-    // 檢查新加入的學生是否已在同課程的其他組別
-    const newStudentIds = studentIds;
-    const conflicting = await prisma.studentGroup.findMany({
-      where: {
-        studentId: { in: newStudentIds },
-        groupId: { not: params.id }, // 排除本組
-        group: { courseId: group.courseId },
-      },
-      include: { student: true, group: true },
-    });
-
-    if (conflicting.length > 0) {
-      const details = conflicting.map(
-        (sg) => `${sg.student.name}（${sg.student.studentId}）已在${sg.group.name}`
-      );
-      return NextResponse.json(
-        { error: `以下學生已有其他組別：\n${details.join('\n')}` },
-        { status: 400 }
-      );
-    }
-
-    // 原子操作：刪除現有分組關係 + 創建新的
+    // 原子操作：移除學生在同課程的舊組別 + 刪除本組現有關係 + 建立新關係
     await prisma.$transaction(async (tx) => {
+      // 先移除這些學生在同課程其他組別的關係（允許調組）
+      if (studentIds.length > 0) {
+        await tx.studentGroup.deleteMany({
+          where: {
+            studentId: { in: studentIds },
+            group: { courseId: group.courseId },
+            groupId: { not: params.id },
+          },
+        });
+      }
+
+      // 刪除本組現有分組關係
       await tx.studentGroup.deleteMany({
         where: { groupId: params.id }
       });
 
+      // 建立新的分組關係
       if (students.length > 0) {
         await tx.studentGroup.createMany({
           data: students.map((student: { id: string; role?: string }) => ({

@@ -59,7 +59,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, code, description, hasClassDivision } = body;
+    const { name, code, description, hasClassDivision, allowStudentGrouping } = body;
 
     if (!name || !name.trim()) {
       return NextResponse.json(
@@ -90,6 +90,7 @@ export async function PUT(
         code: code?.trim() || null,
         description: description?.trim() || null,
         hasClassDivision: typeof hasClassDivision === 'boolean' ? hasClassDivision : existing.hasClassDivision,
+        allowStudentGrouping: typeof allowStudentGrouping === 'boolean' ? allowStudentGrouping : existing.allowStudentGrouping,
       },
     });
 

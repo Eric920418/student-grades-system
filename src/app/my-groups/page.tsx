@@ -28,6 +28,7 @@ interface CourseGroup {
   group: GroupInfo | null;
   myRole: string | null;
   isLeader: boolean;
+  allowStudentGrouping: boolean;
 }
 
 interface AvailableGroup {
@@ -372,6 +373,12 @@ export default function MyGroupsPage() {
               /* 未分組 */
               <div className="space-y-3">
                 <p className="text-gray-500 text-sm">你在此課程尚未加入分組</p>
+                {cg.allowStudentGrouping === false ? (
+                  <div className="bg-orange-50 border border-orange-200 text-orange-700 px-4 py-3 rounded-lg text-sm">
+                    老師已關閉此課程的自助分組功能
+                  </div>
+                ) : (
+                <>
                 <div className="flex flex-wrap gap-3">
                   <button
                     onClick={() =>
@@ -435,6 +442,8 @@ export default function MyGroupsPage() {
                       </div>
                     )}
                   </div>
+                )}
+                </>
                 )}
               </div>
             )}
