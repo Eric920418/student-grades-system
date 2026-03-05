@@ -36,6 +36,14 @@ export async function POST(
       }
     }
 
+    // 檢查人數上限
+    if (students.length > 6) {
+      return NextResponse.json(
+        { error: '每組最多 6 人' },
+        { status: 400 }
+      );
+    }
+
     // 檢查分組是否存在
     const group = await prisma.group.findUnique({
       where: { id: params.id }

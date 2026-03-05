@@ -238,7 +238,10 @@ export default function MyGroupsPage() {
               /* 已有分組 */
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-medium text-gray-800">{cg.group.name}</h3>
+                  <h3 className="font-medium text-gray-800">
+                    {cg.group.name}
+                    <span className="text-sm text-gray-500 ml-2">({cg.group.members.length}/5 人)</span>
+                  </h3>
                   <button
                     onClick={() =>
                       handleAction('leave', { groupId: cg.group!.id }, `leave-${cg.courseId}`)
@@ -416,16 +419,16 @@ export default function MyGroupsPage() {
                               {g.leaderName && (
                                 <span className="text-gray-700 ml-1.5">- {g.leaderName}</span>
                               )}
-                              <span className="text-gray-500 ml-2">({g.memberCount} 人)</span>
+                              <span className="text-gray-500 ml-2">({g.memberCount}/5 人)</span>
                             </span>
                             <button
                               onClick={() =>
                                 handleAction('join', { groupId: g.id }, `join-${g.id}`)
                               }
-                              disabled={!!actionLoading}
+                              disabled={!!actionLoading || g.memberCount >= 5}
                               className="text-sm text-blue-600 hover:text-blue-800 disabled:text-gray-400"
                             >
-                              {actionLoading === `join-${g.id}` ? '加入中...' : '加入'}
+                              {g.memberCount >= 5 ? '已滿' : actionLoading === `join-${g.id}` ? '加入中...' : '加入'}
                             </button>
                           </div>
                         ))}

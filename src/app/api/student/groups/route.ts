@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getUserFromHeaders } from '@/lib/auth';
 
+const MAX_GROUP_MEMBERS = 6;
+
 export async function GET(request: NextRequest) {
   try {
     const user = getUserFromHeaders(request);
@@ -290,6 +292,12 @@ async function handleJoin(body: { groupId?: string }, loginStudentId: string) {
   });
   if (existing) {
     return NextResponse.json({ error: '你在此課程已有分組，請先離開現有分組' }, { status: 400 });
+  }
+
+  // 檢查分組人數上限
+  const memberCount = await prisma.studentGroup.count({ where: { groupId } });
+  if (memberCount >= MAX_GROUP_MEMBERS) {
+    return NextResponse.json({ error: '此分組已滿' }, { status: 400 });
   }
 
   try {
