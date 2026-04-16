@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import PresentationDrawModal from '@/components/PresentationDrawModal';
 
 interface Group {
   id: string;
@@ -30,6 +31,7 @@ export default function GroupsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [courseName, setCourseName] = useState<string>('');
+  const [showDrawModal, setShowDrawModal] = useState(false);
 
   const searchParams = useSearchParams();
   const courseId = searchParams.get('courseId');
@@ -118,12 +120,22 @@ export default function GroupsPage() {
             </Link>
           </div>
         </div>
-        <Link
-          href={`/groups/new${courseId ? `?courseId=${courseId}` : ''}`}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-center"
-        >
-          新增分組
-        </Link>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setShowDrawModal(true)}
+            disabled={groups.length === 0}
+            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            🎲 抽籤
+          </button>
+          <Link
+            href={`/groups/new${courseId ? `?courseId=${courseId}` : ''}`}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-center"
+          >
+            新增分組
+          </Link>
+        </div>
       </div>
 
       {error && (
@@ -202,6 +214,12 @@ export default function GroupsPage() {
           ))
         )}
       </div>
+
+      <PresentationDrawModal
+        open={showDrawModal}
+        onClose={() => setShowDrawModal(false)}
+        groups={groups.map((g) => ({ id: g.id, name: g.name }))}
+      />
     </div>
   );
 }

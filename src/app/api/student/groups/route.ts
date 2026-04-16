@@ -410,6 +410,15 @@ async function handleLeaveCourse(body: { courseId?: string }, loginStudentId: st
     return NextResponse.json({ error: '請指定課程' }, { status: 400 });
   }
 
+  // 檢查課程是否允許學生自助分組
+  const leaveCourseCheck = await prisma.course.findUnique({
+    where: { id: courseId },
+    select: { allowStudentGrouping: true },
+  });
+  if (leaveCourseCheck && !leaveCourseCheck.allowStudentGrouping) {
+    return NextResponse.json({ error: '老師已關閉此課程的自助分組功能' }, { status: 403 });
+  }
+
   const student = await prisma.student.findFirst({
     where: { studentId: loginStudentId, courseId },
   });

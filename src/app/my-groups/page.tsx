@@ -221,17 +221,19 @@ export default function MyGroupsPage() {
                     {cg.isLeader ? '組長' : '組員'}
                   </span>
                 )}
-                <button
-                  onClick={() => {
-                    if (confirm(`確定要退出「${cg.courseName}」嗎？${cg.hasGroup ? '這會同時離開你的分組。' : ''}退出後你的成績記錄也會被移除。`)) {
-                      handleAction('leave-course', { courseId: cg.courseId }, `leave-course-${cg.courseId}`);
-                    }
-                  }}
-                  disabled={!!actionLoading}
-                  className="text-xs text-red-500 hover:text-red-700 disabled:text-gray-400"
-                >
-                  {actionLoading === `leave-course-${cg.courseId}` ? '處理中...' : '退出課程'}
-                </button>
+                {cg.allowStudentGrouping !== false && (
+                  <button
+                    onClick={() => {
+                      if (confirm(`確定要退出「${cg.courseName}」嗎？${cg.hasGroup ? '這會同時離開你的分組。' : ''}退出後你的成績記錄也會被移除。`)) {
+                        handleAction('leave-course', { courseId: cg.courseId }, `leave-course-${cg.courseId}`);
+                      }
+                    }}
+                    disabled={!!actionLoading}
+                    className="text-xs text-red-500 hover:text-red-700 disabled:text-gray-400"
+                  >
+                    {actionLoading === `leave-course-${cg.courseId}` ? '處理中...' : '退出課程'}
+                  </button>
+                )}
               </div>
             </div>
 
