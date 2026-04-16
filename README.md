@@ -47,6 +47,16 @@
   - 支援「再抽一次」重新抽籤、ESC 鍵或背景點擊關閉（滾動中不中斷）
   - **純前端功能**：抽籤結果不寫入資料庫，刷新頁面即消失
 
+### 📄 期中報告 PDF 上傳與全螢幕展示
+- **組長上傳**：在「我的分組」頁面，組長可為自己的組上傳期中報告 PDF（最大 100MB）
+- **一組一份**：每組只保留最新版本，重新上傳會自動覆蓋並刪除舊檔
+- **組員唯讀瀏覽**：同課程學生都能在「我的分組」頁面點「📖 瀏覽（全螢幕）」開啟 PDF
+- **老師全螢幕展示**：老師在「分組管理」頁面可對每組一鍵進入 `📺 全螢幕展示`（適合上台報告時投影）
+- **刪除**：組長或老師皆可刪除該組報告，Blob 與資料庫同步清除
+- **儲存**：PDF 存在 Vercel Blob（public access），URL 寫入 `Group.reportUrl`
+- **權限檢查**：上傳/刪除由 `StudentGroup.isLeader` 判定；老師不受限
+- **PDF 檢視器**：使用瀏覽器原生 PDF viewer（iframe + `#toolbar=1&view=FitH`）+ Fullscreen API，不打包 react-pdf
+
 ### 🙋 學生自助分組（學生專用）
 - **加入課程**：註冊後在「我的分組」頁面查看可用課程列表，點擊「加入」即可加入課程
 - **我的分組頁面**：登入後查看所有已加入課程的分組狀態
@@ -131,6 +141,9 @@ DATABASE_URL="postgresql://username:password@host/database?sslmode=require&pgbou
 # 直連 URL（用於 Prisma migrate/push，不走連線池）
 DIRECT_URL="postgresql://username:password@host/database?sslmode=require"
 JWT_SECRET="your-secret-key-here"
+# Vercel Blob token（期中報告 PDF 上傳用）
+# 到 Vercel Dashboard → Storage → Create Blob 取得
+BLOB_READ_WRITE_TOKEN="vercel_blob_rw_xxxxxxxx"
 ```
 
 > **Neon 用戶注意**：`DATABASE_URL` 使用 pooler endpoint（通常含 `-pooler` 後綴），`DIRECT_URL` 使用直連 endpoint。詳見 [Neon 文件](https://neon.tech/docs/guides/prisma)。
@@ -224,6 +237,10 @@ pnpm start
 - `name`: 分組名稱 (同一課程內唯一)
 - `description`: 分組描述 (選填)
 - `courseId`: 所屬課程 ID (外鍵)
+- `reportUrl`: 期中報告 PDF 的 Vercel Blob URL (選填)
+- `reportFileName`: 期中報告原始檔名 (選填)
+- `reportUploadedAt`: 期中報告上傳時間 (選填)
+- `reportUploadedById`: 期中報告上傳者學號 (選填)
 
 ### 學生分組關係表 (student_groups)
 - `studentId`: 學生ID (外鍵)
@@ -305,7 +322,7 @@ pnpm start
 - `GET /api/auth/me` - 取得當前用戶資訊
 
 #### 學生自助分組 API
-- `GET /api/student/groups` - 取得該學號所有分組資訊
+- `GET /api/student/groups` - 取得該學號所有分組資訊（含 reportUrl 等 4 個報告欄位）
 - `POST /api/student/groups` - 分組操作
   - `action: 'join-course'` - 加入課程（建立 Student 記錄）
   - `action: 'create'` - 建立新分組
@@ -313,6 +330,19 @@ pnpm start
   - `action: 'leave'` - 離開分組
   - `action: 'update-role'` - 更新成員職位（組長限定）
   - `action: 'set-leader'` - 轉移組長（組長限定）
+- `POST /api/student/groups/report/upload-token` - 期中報告 PDF 上傳授權（Vercel Blob Client Upload token）
+  - 僅組長可呼叫；回傳 `@vercel/blob/client` 所需的 token
+  - 伺服器端限制：`application/pdf`、最大 100MB、pathname 必須以 `reports/{groupId}/` 開頭
+  - 不依賴 `onUploadCompleted` webhook（本地 localhost 收不到），DB 寫入改由前端在 `upload()` 完成後呼叫下面的 POST 端點
+- `POST /api/student/groups/report` - 上傳完成後寫入 blob 元資料到 DB
+  - 僅組長可呼叫；驗證 blob URL 必須為 Vercel Blob 網域且路徑以 `/reports/{groupId}/` 開頭（防跨組覆蓋）
+  - 自動刪除該組舊 blob、寫入 `Group.reportUrl / reportFileName / reportUploadedAt / reportUploadedById`
+- `DELETE /api/student/groups/report` - 組長刪除自己組的期中報告 PDF
+  - 同時刪除 Vercel Blob 與資料庫 4 個欄位
+
+#### 老師 - 期中報告 API
+- `DELETE /api/groups/[id]/report` - 老師刪除指定組的期中報告 PDF（admin only）
+  - 同時刪除 Vercel Blob 與資料庫 4 個欄位
 
 #### 老師 API（需老師權限）
 - `GET/POST /api/courses` - 課程管理（GET 開放，POST 需老師）
@@ -347,8 +377,10 @@ src/
 │   ├── grade-items/      # 成績項目頁面
 │   └── grades/           # 成績登記頁面
 ├── components/
-│   ├── AuthProvider.tsx   # 認證 Context
-│   └── Navbar.tsx         # 導航列
+│   ├── AuthProvider.tsx       # 認證 Context
+│   ├── Navbar.tsx             # 導航列
+│   ├── PresentationDrawModal.tsx  # 報告順序抽籤動畫
+│   └── PdfFullscreenViewer.tsx    # PDF 全螢幕檢視器（iframe + Fullscreen API）
 ├── lib/
 │   ├── auth.ts           # 認證工具（JWT 簽發/驗證）
 │   └── prisma.ts         # Prisma 客戶端
@@ -379,6 +411,7 @@ src/
    - `DATABASE_URL`（Neon pooler 連接字串，加上 `?pgbouncer=true&connection_limit=5`）
    - `DIRECT_URL`（Neon 直連字串，用於 Prisma migration）
    - `JWT_SECRET`（JWT 密鑰，任意長字串）
+   - `BLOB_READ_WRITE_TOKEN`（Vercel Blob token，於 Vercel Dashboard → Storage 建立 Blob store 後自動注入）
 4. 部署完成
 
 ### 注意事項

@@ -3,7 +3,9 @@
     "allow": [
       "Bash(pnpm prisma db push:*)",
       "Bash(pnpm add:*)",
-      "Bash(pnpm build:*)"
+      "Bash(pnpm build:*)",
+      "Bash(pnpm prisma *)",
+      "Bash(pnpm typecheck *)"
     ]
   }
 }

@@ -56,6 +56,10 @@ export async function GET(request: NextRequest) {
         group: group ? {
           id: group.id,
           name: group.name,
+          reportUrl: group.reportUrl,
+          reportFileName: group.reportFileName,
+          reportUploadedAt: group.reportUploadedAt,
+          reportUploadedById: group.reportUploadedById,
           members: group.studentGroups.map(sg => ({
             studentDbId: sg.student.id,
             name: sg.student.name,

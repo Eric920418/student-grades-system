@@ -6,12 +6,17 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import PresentationDrawModal from '@/components/PresentationDrawModal';
+import PdfFullscreenViewer from '@/components/PdfFullscreenViewer';
 
 interface Group {
   id: string;
   name: string;
   description?: string;
   createdAt: string;
+  reportUrl?: string | null;
+  reportFileName?: string | null;
+  reportUploadedAt?: string | null;
+  reportUploadedById?: string | null;
   course?: {
     name: string;
     code?: string;
@@ -32,6 +37,13 @@ export default function GroupsPage() {
   const [error, setError] = useState<string | null>(null);
   const [courseName, setCourseName] = useState<string>('');
   const [showDrawModal, setShowDrawModal] = useState(false);
+
+  // PDF 全螢幕展示
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+  const [viewerFileName, setViewerFileName] = useState<string | null>(null);
+  const [viewerTitle, setViewerTitle] = useState('');
+  const [deletingReportGroupId, setDeletingReportGroupId] = useState<string | null>(null);
 
   const searchParams = useSearchParams();
   const courseId = searchParams.get('courseId');
@@ -69,6 +81,46 @@ export default function GroupsPage() {
       console.error('獲取分組列表錯誤:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const presentReport = (group: Group) => {
+    if (!group.reportUrl) return;
+    setViewerUrl(group.reportUrl);
+    setViewerFileName(group.reportFileName || null);
+    setViewerTitle(`${group.course?.name ? group.course.name + ' - ' : ''}${group.name} 期中報告`);
+    setViewerOpen(true);
+  };
+
+  const closeReportViewer = () => {
+    setViewerOpen(false);
+    setViewerUrl(null);
+    setViewerFileName(null);
+    setViewerTitle('');
+  };
+
+  const deleteReport = async (groupId: string, groupName: string) => {
+    if (!confirm(`確定要刪除 ${groupName} 的期中報告 PDF 嗎？此動作無法復原。`)) return;
+    setDeletingReportGroupId(groupId);
+    try {
+      const response = await fetch(`/api/groups/${groupId}/report`, {
+        method: 'DELETE',
+      });
+      const text = await response.text();
+      let data: { error?: string; details?: string } = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error(`刪除失敗（回應非 JSON）：${text.slice(0, 200)}`);
+      }
+      if (!response.ok) {
+        throw new Error(data.error || data.details || `刪除失敗（HTTP ${response.status}）`);
+      }
+      await fetchGroups();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '刪除報告失敗');
+    } finally {
+      setDeletingReportGroupId(null);
     }
   };
 
@@ -174,6 +226,48 @@ export default function GroupsPage() {
                 <p className="text-gray-600 text-sm mb-4">{group.description}</p>
               )}
 
+              {/* 期中報告 */}
+              <div className="mb-3 border rounded-lg p-3 bg-gray-50">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-sm font-semibold text-gray-800">📄 期中報告</span>
+                  {group.reportUrl ? (
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">已上傳</span>
+                  ) : (
+                    <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">尚未上傳</span>
+                  )}
+                </div>
+                {group.reportUrl ? (
+                  <div className="space-y-2">
+                    <div className="text-xs text-gray-600 truncate" title={group.reportFileName || ''}>
+                      {group.reportFileName || '未命名.pdf'}
+                    </div>
+                    {group.reportUploadedAt && (
+                      <div className="text-xs text-gray-500">
+                        上傳於 {new Date(group.reportUploadedAt).toLocaleString('zh-TW')}
+                      </div>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => presentReport(group)}
+                        className="bg-purple-600 text-white px-3 py-1.5 rounded-lg hover:bg-purple-700 text-sm"
+                        title="開啟報告後再按「全螢幕」按鈕進入全螢幕"
+                      >
+                        📺 開啟報告
+                      </button>
+                      <button
+                        onClick={() => deleteReport(group.id, group.name)}
+                        disabled={deletingReportGroupId === group.id}
+                        className="bg-white border border-red-300 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50 disabled:text-gray-400 text-sm"
+                      >
+                        {deletingReportGroupId === group.id ? '刪除中...' : '🗑 刪除'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500">組長尚未上傳 PDF</p>
+                )}
+              </div>
+
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-700">
@@ -219,6 +313,14 @@ export default function GroupsPage() {
         open={showDrawModal}
         onClose={() => setShowDrawModal(false)}
         groups={groups.map((g) => ({ id: g.id, name: g.name }))}
+      />
+
+      <PdfFullscreenViewer
+        open={viewerOpen}
+        url={viewerUrl}
+        fileName={viewerFileName}
+        title={viewerTitle}
+        onClose={closeReportViewer}
       />
     </div>
   );

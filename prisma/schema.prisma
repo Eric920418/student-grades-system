@@ -58,6 +58,10 @@ model Group {
   name        String
   description String?
   courseId    String   // 課程ID
+  reportUrl          String?   // 期中報告 PDF：Vercel Blob URL
+  reportFileName     String?   // 期中報告 PDF：原始檔名
+  reportUploadedAt   DateTime? // 期中報告 PDF：上傳時間
+  reportUploadedById String?   // 期中報告 PDF：上傳者學號
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

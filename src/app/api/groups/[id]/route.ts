@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { del } from '@vercel/blob';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
 
@@ -107,6 +108,19 @@ export async function DELETE(
   if (adminError) return adminError;
 
   try {
+    const existing = await prisma.group.findUnique({
+      where: { id: params.id },
+      select: { reportUrl: true },
+    });
+
+    if (existing?.reportUrl) {
+      try {
+        await del(existing.reportUrl);
+      } catch (e) {
+        console.error('刪除 blob 失敗（仍繼續刪除分組）:', e);
+      }
+    }
+
     await prisma.group.delete({
       where: { id: params.id }
     });

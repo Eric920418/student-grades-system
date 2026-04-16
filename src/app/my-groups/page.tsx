@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { upload } from '@vercel/blob/client';
 import { useAuth } from '@/components/AuthProvider';
+import PdfFullscreenViewer from '@/components/PdfFullscreenViewer';
 
 interface Member {
   studentDbId: string;
@@ -17,6 +19,10 @@ interface GroupInfo {
   id: string;
   name: string;
   members: Member[];
+  reportUrl: string | null;
+  reportFileName: string | null;
+  reportUploadedAt: string | null;
+  reportUploadedById: string | null;
 }
 
 interface CourseGroup {
@@ -63,6 +69,14 @@ export default function MyGroupsPage() {
   const [editingMember, setEditingMember] = useState<string | null>(null);
   const [editRole, setEditRole] = useState('');
 
+  // 期中報告相關
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+  const [viewerFileName, setViewerFileName] = useState<string | null>(null);
+  const [viewerTitle, setViewerTitle] = useState<string>('');
+  const [uploadingGroupId, setUploadingGroupId] = useState<string | null>(null);
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
   const fetchMyGroups = useCallback(async () => {
     try {
       const res = await fetch('/api/student/groups');
@@ -107,6 +121,103 @@ export default function MyGroupsPage() {
     } finally {
       setActionLoading('');
     }
+  };
+
+  const handleUploadReport = async (groupId: string, file: File) => {
+    setError('');
+    if (file.type !== 'application/pdf') {
+      setError(`檔案類型必須為 PDF（目前：${file.type || '未知'}）`);
+      return;
+    }
+    if (file.size > 100 * 1024 * 1024) {
+      setError(`檔案超過 100MB 上限（目前：${(file.size / 1024 / 1024).toFixed(1)}MB）`);
+      return;
+    }
+    setUploadingGroupId(groupId);
+    try {
+      const blob = await upload(`reports/${groupId}/${file.name}`, file, {
+        access: 'public',
+        handleUploadUrl: '/api/student/groups/report/upload-token',
+        clientPayload: JSON.stringify({ groupId }),
+        contentType: 'application/pdf',
+      });
+
+      const completeRes = await fetch('/api/student/groups/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          groupId,
+          blobUrl: blob.url,
+          fileName: file.name,
+        }),
+      });
+      const completeText = await completeRes.text();
+      let completeJson: { error?: string; details?: string } = {};
+      try {
+        completeJson = completeText ? JSON.parse(completeText) : {};
+      } catch {
+        throw new Error(`完成上傳失敗（回應非 JSON）：${completeText.slice(0, 200)}`);
+      }
+      if (!completeRes.ok) {
+        throw new Error(
+          completeJson.error || completeJson.details || `完成上傳失敗（HTTP ${completeRes.status}）`
+        );
+      }
+
+      await fetchMyGroups();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '上傳失敗');
+    } finally {
+      setUploadingGroupId(null);
+      const ref = fileInputRefs.current[groupId];
+      if (ref) ref.value = '';
+    }
+  };
+
+  const handleDeleteReport = async (groupId: string) => {
+    if (!confirm('確定要刪除此組的期中報告 PDF 嗎？此動作無法復原。')) return;
+    setActionLoading(`delete-report-${groupId}`);
+    setError('');
+    try {
+      const res = await fetch('/api/student/groups/report', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupId }),
+      });
+      const text = await res.text();
+      let data: { error?: string; details?: string } = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error(`刪除失敗（回應非 JSON）：${text.slice(0, 200)}`);
+      }
+      if (!res.ok) {
+        throw new Error(data.error || data.details || `刪除失敗（HTTP ${res.status}）`);
+      }
+      await fetchMyGroups();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '刪除失敗');
+    } finally {
+      setActionLoading('');
+    }
+  };
+
+  const openReportViewer = (
+    url: string,
+    fileName: string | null,
+    title: string
+  ) => {
+    setViewerUrl(url);
+    setViewerFileName(fileName);
+    setViewerTitle(title);
+    setViewerOpen(true);
+  };
+
+  const closeReportViewer = () => {
+    setViewerOpen(false);
+    setViewerUrl(null);
+    setViewerFileName(null);
+    setViewerTitle('');
   };
 
   const fetchAvailableGroups = async (courseId: string) => {
@@ -256,6 +367,90 @@ export default function MyGroupsPage() {
                       {actionLoading === `leave-${cg.courseId}` ? '處理中...' : '離開分組'}
                     </button>
                   )}
+                </div>
+
+                {/* 期中報告 PDF */}
+                <div className="mb-4 border rounded-lg p-4 bg-gray-50">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-sm font-semibold text-gray-800 flex items-center gap-1">
+                        📄 期中報告 PDF
+                      </h4>
+                      {cg.group.reportUrl ? (
+                        <div className="mt-1 text-xs text-gray-600">
+                          <div className="truncate">
+                            檔名：<span className="font-medium text-gray-800">{cg.group.reportFileName || '未命名.pdf'}</span>
+                          </div>
+                          {cg.group.reportUploadedAt && (
+                            <div>
+                              上傳於：{new Date(cg.group.reportUploadedAt).toLocaleString('zh-TW')}
+                              {cg.group.reportUploadedById && (
+                                <span className="ml-1 text-gray-500">（{cg.group.reportUploadedById}）</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="mt-1 text-xs text-gray-500">
+                          {cg.isLeader
+                            ? '尚未上傳，請上傳期中報告 PDF（最大 100MB）'
+                            : '組長尚未上傳報告'}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {cg.group.reportUrl && (
+                        <button
+                          onClick={() =>
+                            openReportViewer(
+                              cg.group!.reportUrl!,
+                              cg.group!.reportFileName,
+                              `${cg.courseName} - ${cg.group!.name} 期中報告`
+                            )
+                          }
+                          className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 text-sm"
+                        >
+                          📖 瀏覽（全螢幕）
+                        </button>
+                      )}
+                      {cg.isLeader && (
+                        <>
+                          <input
+                            ref={(el) => {
+                              fileInputRefs.current[cg.group!.id] = el;
+                            }}
+                            type="file"
+                            accept="application/pdf"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleUploadReport(cg.group!.id, file);
+                            }}
+                          />
+                          <button
+                            onClick={() => fileInputRefs.current[cg.group!.id]?.click()}
+                            disabled={uploadingGroupId === cg.group!.id}
+                            className="bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 disabled:bg-green-400 text-sm"
+                          >
+                            {uploadingGroupId === cg.group!.id
+                              ? '上傳中...'
+                              : cg.group!.reportUrl
+                                ? '🔄 重新上傳'
+                                : '⬆️ 上傳 PDF'}
+                          </button>
+                          {cg.group!.reportUrl && (
+                            <button
+                              onClick={() => handleDeleteReport(cg.group!.id)}
+                              disabled={actionLoading === `delete-report-${cg.group!.id}`}
+                              className="bg-white border border-red-300 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50 disabled:text-gray-400 text-sm"
+                            >
+                              {actionLoading === `delete-report-${cg.group!.id}` ? '刪除中...' : '🗑 刪除'}
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {/* 成員列表 */}
@@ -454,6 +649,14 @@ export default function MyGroupsPage() {
           </div>
         ))
       )}
+
+      <PdfFullscreenViewer
+        open={viewerOpen}
+        url={viewerUrl}
+        fileName={viewerFileName}
+        title={viewerTitle}
+        onClose={closeReportViewer}
+      />
     </div>
   );
 }
