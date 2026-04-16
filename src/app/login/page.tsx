@@ -175,7 +175,7 @@ export default function LoginPage() {
                       type="text"
                       value={studentId}
                       onChange={(e) => setStudentId(e.target.value)}
-                      placeholder="請輸入學號"
+                      placeholder="請輸入學號 不用加s"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                       required
                       autoFocus

@@ -68,10 +68,19 @@ export function getTokenCookieOptions() {
 export function getUserFromHeaders(request: NextRequest): UserPayload | null {
   const role = request.headers.get('x-user-role');
   if (!role) return null;
+  const rawName = request.headers.get('x-user-name');
+  let decodedName: string | undefined;
+  if (rawName) {
+    try {
+      decodedName = decodeURIComponent(rawName);
+    } catch {
+      decodedName = rawName;
+    }
+  }
   return {
     role: role as 'admin' | 'student',
     studentId: request.headers.get('x-user-student-id') || undefined,
-    name: request.headers.get('x-user-name') || undefined,
+    name: decodedName,
   };
 }
 

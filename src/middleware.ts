@@ -94,10 +94,11 @@ export async function middleware(request: NextRequest) {
   }
 
   // 注入 headers 供 API route 使用
+  // name 可能含中文/非 ASCII 字元，HTTP header 規範只允許 ASCII，故 encodeURIComponent
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-user-role', payload.role);
   if (payload.studentId) requestHeaders.set('x-user-student-id', payload.studentId);
-  if (payload.name) requestHeaders.set('x-user-name', payload.name);
+  if (payload.name) requestHeaders.set('x-user-name', encodeURIComponent(payload.name));
 
   return NextResponse.next({
     request: { headers: requestHeaders },
