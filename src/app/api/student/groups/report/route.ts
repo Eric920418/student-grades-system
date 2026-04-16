@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { del } from '@vercel/blob';
+import { del, head } from '@vercel/blob';
 import { getUserFromHeaders } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 // POST：上傳完成後由前端呼叫，寫入 blob 元資料到 DB
 // （不使用 Vercel Blob 的 onUploadCompleted webhook，因為本地 localhost 無法接收）
+// 任何失敗路徑都會在 finally 中清掉剛傳上來的孤兒 blob
 export async function POST(request: NextRequest) {
+  let orphanUrl: string | null = null;
   try {
     const user = getUserFromHeaders(request);
     if (!user || user.role !== 'student' || !user.studentId) {
@@ -43,6 +45,23 @@ export async function POST(request: NextRequest) {
     if (!parsedUrl.pathname.startsWith(expectedPrefix)) {
       return NextResponse.json(
         { error: `blobUrl 路徑必須以 ${expectedPrefix} 開頭（防止跨組覆蓋）` },
+        { status: 400 }
+      );
+    }
+
+    // 通過格式驗證後，若接下來任何步驟失敗，這個 blob 就是孤兒要清掉
+    orphanUrl = blobUrl;
+
+    try {
+      await head(blobUrl);
+    } catch (e) {
+      // blob 不存在於 store（可能是偽造的 URL），blob 不是我們的孤兒
+      orphanUrl = null;
+      return NextResponse.json(
+        {
+          error: '找不到此 blob，上傳可能失敗，請重新上傳',
+          details: e instanceof Error ? e.message : String(e),
+        },
         { status: 400 }
       );
     }
@@ -97,6 +116,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // 成功：新 blob 就是要保留的 reportUrl，不清除
+    orphanUrl = null;
     return NextResponse.json({ success: true, group: updated });
   } catch (error) {
     console.error('記錄上傳完成 API 錯誤:', error);
@@ -107,6 +128,15 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 }
     );
+  } finally {
+    if (orphanUrl) {
+      try {
+        await del(orphanUrl);
+        console.info('已清理孤兒 blob:', orphanUrl);
+      } catch (e) {
+        console.error('清理孤兒 blob 失敗:', e);
+      }
+    }
   }
 }
 

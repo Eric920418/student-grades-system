@@ -134,10 +134,16 @@ export default function GroupsPage() {
         method: 'DELETE',
       });
 
-      const data = await response.json();
+      const text = await response.text();
+      let data: { error?: string; details?: string } = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error(`刪除失敗（回應非 JSON）：${text.slice(0, 200)}`);
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || '刪除分組失敗');
+        throw new Error(data.error || data.details || `刪除分組失敗（HTTP ${response.status}）`);
       }
 
       await fetchGroups();
@@ -297,7 +303,7 @@ export default function GroupsPage() {
                       ))}
                       {group.studentGroups.length > 6 && (
                         <div className="text-xs text-gray-500">
-                          還有 {group.studentGroups.length - 3} 位學生...
+                          還有 {group.studentGroups.length - 6} 位學生...
                         </div>
                       )}
                     </div>
