@@ -5,6 +5,8 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import PresentationDrawModal from '@/components/PresentationDrawModal';
+import GroupCommentModal from '@/components/GroupCommentModal';
 
 interface Student {
   id: string;
@@ -47,6 +49,13 @@ interface StudentGradeData {
   totalScore: number;
 }
 
+interface GroupComment {
+  id: string;
+  groupId: string;
+  gradeItemId: string;
+  comment: string;
+}
+
 export default function GradesPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [gradeItems, setGradeItems] = useState<GradeItem[]>([]);
@@ -63,6 +72,10 @@ export default function GradesPage() {
   const [editingGroupGrade, setEditingGroupGrade] = useState<{groupId: string, gradeItemId: string, score: string} | null>(null);
   const [groupSearchQuery, setGroupSearchQuery] = useState<string>('');
   const [showGradedGroups, setShowGradedGroups] = useState<boolean>(false);
+  const [showDrawModal, setShowDrawModal] = useState<boolean>(false);
+  const [drawnOrder, setDrawnOrder] = useState<string[] | null>(null);
+  const [groupComments, setGroupComments] = useState<GroupComment[]>([]);
+  const [editingCommentGroup, setEditingCommentGroup] = useState<{ groupId: string; groupName: string } | null>(null);
 
   const searchParams = useSearchParams();
   const courseId = searchParams.get('courseId');
@@ -91,29 +104,33 @@ export default function GradesPage() {
       if (courseId) params.append('courseId', courseId);
       const queryString = params.toString();
 
-      const [studentsResponse, gradeItemsResponse, gradesResponse, groupsResponse] = await Promise.all([
+      const [studentsResponse, gradeItemsResponse, gradesResponse, groupsResponse, commentsResponse] = await Promise.all([
         fetch(`/api/students${queryString ? '?' + queryString : ''}`),
         fetch(`/api/grade-items${queryString ? '?' + queryString : ''}`),
         fetch(`/api/grades${queryString ? '?' + queryString : ''}`),
-        fetch(`/api/groups${queryString ? '?' + queryString : ''}`)
+        fetch(`/api/groups${queryString ? '?' + queryString : ''}`),
+        fetch(`/api/group-comments${queryString ? '?' + queryString : ''}`)
       ]);
 
-      const [studentsData, gradeItemsData, gradesData, groupsData] = await Promise.all([
+      const [studentsData, gradeItemsData, gradesData, groupsData, commentsData] = await Promise.all([
         studentsResponse.json(),
         gradeItemsResponse.json(),
         gradesResponse.json(),
-        groupsResponse.json()
+        groupsResponse.json(),
+        commentsResponse.json()
       ]);
 
       if (!studentsResponse.ok) throw new Error(studentsData.error || '獲取學生列表失敗');
       if (!gradeItemsResponse.ok) throw new Error(gradeItemsData.error || '獲取成績項目失敗');
       if (!gradesResponse.ok) throw new Error(gradesData.error || '獲取成績列表失敗');
       if (!groupsResponse.ok) throw new Error(groupsData.error || '獲取分組列表失敗');
+      if (!commentsResponse.ok) throw new Error(commentsData.error || '獲取評語失敗');
 
       setStudents(studentsData);
       setGradeItems(gradeItemsData);
       setGrades(gradesData);
       setGroups(groupsData);
+      setGroupComments(commentsData);
 
       // 設定課程名稱
       if (studentsData.length > 0 && studentsData[0].course) {
@@ -253,6 +270,40 @@ export default function GradesPage() {
     }
   };
 
+  // 取得指定組別在當前成績項目的評語內容
+  const getCommentForGroup = (groupId: string): string => {
+    if (!selectedGradeItemId) return '';
+    const found = groupComments.find(
+      (c) => c.groupId === groupId && c.gradeItemId === selectedGradeItemId
+    );
+    return found?.comment ?? '';
+  };
+
+  // 儲存評語(Modal 的 onSave callback)
+  const handleCommentSave = async (comment: string) => {
+    if (!editingCommentGroup || !selectedGradeItemId) {
+      throw new Error('缺少組別或成績項目');
+    }
+    const response = await fetch('/api/group-comments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        groupId: editingCommentGroup.groupId,
+        gradeItemId: selectedGradeItemId,
+        comment,
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      const errorDetails = data.details ? `\n詳細信息: ${data.details}` : '';
+      const errorStack = data.stack ? `\n堆疊追蹤:\n${data.stack}` : '';
+      throw new Error(`${data.error || '儲存評語失敗'}${errorDetails}${errorStack}`);
+    }
+    await fetchAllData();
+    setSuccessMessage(comment.trim() === '' ? '評語已刪除' : '評語已儲存');
+    setTimeout(() => setSuccessMessage(null), 3000);
+  };
+
   if (loading) {
     return (
       <div className="text-center py-8">
@@ -323,12 +374,23 @@ export default function GradesPage() {
 
   const filteredGroups = getFilteredGroups();
 
+  // 套用抽籤順序:抽過的組按 drawnOrder 排序,沒抽到的組排到最後
+  const applyDrawnOrder = (list: Group[]): Group[] => {
+    if (!drawnOrder || drawnOrder.length === 0) return list;
+    const orderIndex = new Map(drawnOrder.map((id, i) => [id, i]));
+    const TAIL = Number.MAX_SAFE_INTEGER;
+    return [...list].sort(
+      (a, b) => (orderIndex.get(a.id) ?? TAIL) - (orderIndex.get(b.id) ?? TAIL)
+    );
+  };
+
   // 搜尋學號對應的組別
   const getSearchedGroups = () => {
-    if (!groupSearchQuery.trim()) return filteredGroups;
+    const base = applyDrawnOrder(filteredGroups);
+    if (!groupSearchQuery.trim()) return base;
 
     const query = groupSearchQuery.trim().toLowerCase();
-    return filteredGroups.filter(group =>
+    return base.filter(group =>
       group.studentGroups.some(sg =>
         sg.student.studentId.toLowerCase().includes(query)
       )
@@ -336,6 +398,13 @@ export default function GradesPage() {
   };
 
   const searchedGroups = getSearchedGroups();
+
+  // 取得組別的報告順序(1-based),沒抽到回傳 null
+  const getPresentationOrder = (groupId: string): number | null => {
+    if (!drawnOrder) return null;
+    const idx = drawnOrder.indexOf(groupId);
+    return idx === -1 ? null : idx + 1;
+  };
 
   // 檢查學號是否匹配搜尋
   const isStudentMatch = (studentId: string) => {
@@ -520,11 +589,11 @@ export default function GradesPage() {
       {/* 分組模式 */}
       {mode === 'group' && selectedGradeItem && (
         <div className="bg-white rounded-lg shadow-sm overflow-x-auto">
-          {/* 工具列：學號搜尋 + 顯示已評分切換 */}
+          {/* 工具列：學號搜尋 + 抽籤 + 顯示已評分切換 */}
           {groups.length > 0 && (
-            <div className="p-4 border-b border-gray-200">
+            <div className="p-4 border-b border-gray-200 space-y-3">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   <label htmlFor="groupSearch" className="text-sm font-medium text-gray-700 whitespace-nowrap">
                     學號查組：
                   </label>
@@ -550,19 +619,42 @@ export default function GradesPage() {
                     </span>
                   )}
                 </div>
-                {/* 顯示已評分組別切換 */}
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={showGradedGroups}
-                    onChange={(e) => setShowGradedGroups(e.target.checked)}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <span className="text-sm font-medium text-gray-700">
-                    顯示已評分組別（修改成績）
-                  </span>
-                </label>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setShowDrawModal(true)}
+                    disabled={groups.length === 0}
+                    className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed text-sm font-medium"
+                  >
+                    🎲 抽籤報告順序
+                  </button>
+                  {drawnOrder && (
+                    <button
+                      type="button"
+                      onClick={() => setDrawnOrder(null)}
+                      className="text-sm text-gray-500 hover:text-gray-700 underline"
+                    >
+                      清除順序
+                    </button>
+                  )}
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showGradedGroups}
+                      onChange={(e) => setShowGradedGroups(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">
+                      顯示已評分組別（修改成績）
+                    </span>
+                  </label>
+                </div>
               </div>
+              {drawnOrder && (
+                <div className="text-xs text-purple-700 bg-purple-50 border border-purple-200 rounded px-3 py-2">
+                  ✨ 已套用抽籤順序,下方組別依報告順序排列。完成評分的組會自動隱藏,下一組自動移到最上方。
+                </div>
+              )}
             </div>
           )}
           {groups.length === 0 ? (
@@ -600,11 +692,20 @@ export default function GradesPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {searchedGroups.map((group) => (
+                {searchedGroups.map((group) => {
+                  const presentationOrder = getPresentationOrder(group.id);
+                  return (
                   <tr key={group.id} className="hover:bg-gray-50">
                     <td className="px-3 py-3 md:px-6 md:py-4">
-                      <div className="text-sm font-medium text-gray-900 mb-2">
-                        {group.name}
+                      <div className="flex items-center gap-2 mb-2">
+                        {presentationOrder !== null && (
+                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-purple-600 text-white font-bold text-sm shadow-sm shrink-0">
+                            {presentationOrder}
+                          </span>
+                        )}
+                        <div className="text-sm font-medium text-gray-900">
+                          {group.name}
+                        </div>
                       </div>
                       <div className="text-xs text-gray-500 mb-2">
                         {group.studentGroups.length} 位成員：
@@ -656,43 +757,86 @@ export default function GradesPage() {
                           </button>
                         </div>
                       ) : (
-                        <button
-                          onClick={() => handleGroupGradeEdit(group.id, selectedGradeItemId)}
-                          className={`px-4 py-3 rounded-lg transition-colors min-w-[140px] md:min-w-[200px] ${
-                            isGroupGraded(group)
-                              ? 'bg-green-50 hover:bg-green-100 text-green-700 border border-green-200'
-                              : 'bg-blue-50 hover:bg-blue-100 text-blue-700'
-                          }`}
-                        >
-                          {isGroupGraded(group) ? (
-                            <>
-                              <div className="text-lg font-bold">
-                                {getGroupCurrentScore(group)?.toFixed(1)} 分
-                              </div>
-                              <div className="text-xs text-green-600 mt-1">
-                                已評分 · 點擊修改
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <div className="text-base font-medium">
-                                點擊給整組評分
-                              </div>
-                              <div className="text-xs text-blue-600 mt-1">
-                                {group.studentGroups.length} 位成員將獲得相同成績
-                              </div>
-                            </>
-                          )}
-                        </button>
+                        <div className="flex flex-col items-center gap-2">
+                          <button
+                            onClick={() => handleGroupGradeEdit(group.id, selectedGradeItemId)}
+                            className={`px-4 py-3 rounded-lg transition-colors min-w-[140px] md:min-w-[200px] ${
+                              isGroupGraded(group)
+                                ? 'bg-green-50 hover:bg-green-100 text-green-700 border border-green-200'
+                                : 'bg-blue-50 hover:bg-blue-100 text-blue-700'
+                            }`}
+                          >
+                            {isGroupGraded(group) ? (
+                              <>
+                                <div className="text-lg font-bold">
+                                  {getGroupCurrentScore(group)?.toFixed(1)} 分
+                                </div>
+                                <div className="text-xs text-green-600 mt-1">
+                                  已評分 · 點擊修改
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="text-base font-medium">
+                                  點擊給整組評分
+                                </div>
+                                <div className="text-xs text-blue-600 mt-1">
+                                  {group.studentGroups.length} 位成員將獲得相同成績
+                                </div>
+                              </>
+                            )}
+                          </button>
+                          {(() => {
+                            const hasComment = getCommentForGroup(group.id).trim() !== '';
+                            return (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setEditingCommentGroup({
+                                    groupId: group.id,
+                                    groupName: group.name,
+                                  })
+                                }
+                                className={`px-3 py-1.5 rounded-lg text-xs transition-colors min-w-[140px] md:min-w-[200px] border ${
+                                  hasComment
+                                    ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200'
+                                    : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200'
+                                }`}
+                                title={hasComment ? getCommentForGroup(group.id) : '尚未撰寫評語'}
+                              >
+                                {hasComment ? '💬 已寫評語 · 點擊編輯' : '💬 撰寫評語'}
+                              </button>
+                            );
+                          })()}
+                        </div>
                       )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           )}
         </div>
       )}
+
+      <PresentationDrawModal
+        open={showDrawModal}
+        onClose={() => setShowDrawModal(false)}
+        groups={filteredGroups.map((g) => ({ id: g.id, name: g.name }))}
+        onDrawComplete={(orderedIds) => setDrawnOrder(orderedIds)}
+      />
+
+      <GroupCommentModal
+        open={editingCommentGroup !== null}
+        onClose={() => setEditingCommentGroup(null)}
+        onSave={handleCommentSave}
+        groupName={editingCommentGroup?.groupName ?? ''}
+        gradeItemName={selectedGradeItem?.name ?? ''}
+        initialComment={
+          editingCommentGroup ? getCommentForGroup(editingCommentGroup.groupId) : ''
+        }
+      />
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h3 className="text-sm font-medium text-blue-900 mb-2">使用說明</h3>

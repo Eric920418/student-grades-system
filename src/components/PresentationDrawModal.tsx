@@ -10,6 +10,7 @@ interface Props {
   open: boolean;
   onClose: () => void;
   groups: DrawGroup[];
+  onDrawComplete?: (orderedGroupIds: string[]) => void;
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -26,7 +27,7 @@ const FAST_DELAY = 80;
 const SLOW_DELAY = 400;
 const STAGGER_MS = 100;
 
-export default function PresentationDrawModal({ open, onClose, groups }: Props) {
+export default function PresentationDrawModal({ open, onClose, groups, onDrawComplete }: Props) {
   const [phase, setPhase] = useState<Phase>('idle');
   const [displayOrder, setDisplayOrder] = useState<DrawGroup[]>(groups);
   const [finalOrder, setFinalOrder] = useState<DrawGroup[] | null>(null);
@@ -34,6 +35,12 @@ export default function PresentationDrawModal({ open, onClose, groups }: Props) 
 
   const rollingTimeoutRef = useRef<number | null>(null);
   const staggerTimeoutsRef = useRef<number[]>([]);
+
+  // 用 ref 保存 callback,避免 startRolling 產生 stale closure
+  const onDrawCompleteRef = useRef(onDrawComplete);
+  useEffect(() => {
+    onDrawCompleteRef.current = onDrawComplete;
+  }, [onDrawComplete]);
 
   const cleanupTimers = useCallback(() => {
     if (rollingTimeoutRef.current !== null) {
@@ -102,6 +109,9 @@ export default function PresentationDrawModal({ open, onClose, groups }: Props) 
         setDisplayOrder(final);
         setFinalOrder(final);
         setPhase('done');
+
+        // 通知父層抽籤結果(此時 phase 已進入 done,動畫開始揭曉)
+        onDrawCompleteRef.current?.(final.map((g) => g.id));
 
         // Stagger 揭曉每張卡片的順序徽章
         groups.forEach((_, i) => {

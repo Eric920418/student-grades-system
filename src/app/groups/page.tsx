@@ -5,7 +5,6 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import PresentationDrawModal from '@/components/PresentationDrawModal';
 import PdfFullscreenViewer from '@/components/PdfFullscreenViewer';
 
 interface Group {
@@ -38,7 +37,6 @@ export default function GroupsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [courseName, setCourseName] = useState<string>('');
-  const [showDrawModal, setShowDrawModal] = useState(false);
 
   // PDF 全螢幕展示
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -269,14 +267,6 @@ export default function GroupsPage() {
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => setShowDrawModal(true)}
-            disabled={groups.length === 0}
-            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            🎲 抽籤
-          </button>
-          <button
-            type="button"
             onClick={bulkAssignLeaders}
             disabled={groups.length === 0 || bulkAssigning}
             className="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
@@ -435,12 +425,6 @@ export default function GroupsPage() {
           ))
         )}
       </div>
-
-      <PresentationDrawModal
-        open={showDrawModal}
-        onClose={() => setShowDrawModal(false)}
-        groups={groups.map((g) => ({ id: g.id, name: g.name }))}
-      />
 
       <PdfFullscreenViewer
         open={viewerOpen}

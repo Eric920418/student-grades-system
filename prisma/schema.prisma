@@ -67,6 +67,7 @@ model Group {
 
   course        Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
   studentGroups StudentGroup[]
+  groupComments GroupComment[]
 
   @@unique([name, courseId]) // 同一課程內分組名稱唯一
   @@map("groups")
@@ -96,8 +97,9 @@ model GradeItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  course Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  grades Grade[]
+  course        Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  grades        Grade[]
+  groupComments GroupComment[]
 
   @@unique([name, courseId]) // 同一課程內成績項目名稱唯一
   @@map("grade_items")
@@ -116,4 +118,19 @@ model Grade {
 
   @@unique([studentId, gradeItemId])
   @@map("grades")
+}
+
+model GroupComment {
+  id          String   @id @default(cuid())
+  groupId     String
+  gradeItemId String
+  comment     String   // 老師給該組在該成績項目的評語
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  group     Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  gradeItem GradeItem @relation(fields: [gradeItemId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, gradeItemId]) // 一組一個成績項目只有一則評語
+  @@map("group_comments")
 }
