@@ -77,22 +77,25 @@ export default function PdfFullscreenViewer({
     <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-2 md:p-4">
       <div
         ref={containerRef}
-        className="bg-white rounded-lg shadow-xl w-full h-full max-w-6xl max-h-full flex flex-col overflow-hidden"
+        className={`bg-white shadow-xl w-full h-full flex flex-col overflow-hidden ${
+          isFullscreen ? 'max-w-none max-h-none rounded-none' : 'max-w-6xl max-h-full rounded-lg'
+        }`}
       >
-        <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="text-lg">📄</span>
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-gray-900 truncate">
-                {title || '期中報告'}
+        {/* 非全螢幕：固定 header */}
+        {!isFullscreen && (
+          <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-lg">📄</span>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-gray-900 truncate">
+                  {title || '期中報告'}
+                </div>
+                {fileName && (
+                  <div className="text-xs text-gray-500 truncate">{fileName}</div>
+                )}
               </div>
-              {fileName && (
-                <div className="text-xs text-gray-500 truncate">{fileName}</div>
-              )}
             </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {!isFullscreen ? (
+            <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={enterFullscreen}
                 className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 text-sm"
@@ -100,32 +103,45 @@ export default function PdfFullscreenViewer({
               >
                 📺 全螢幕
               </button>
-            ) : (
-              <button
-                onClick={exitFullscreen}
-                className="bg-gray-600 text-white px-3 py-1.5 rounded-lg hover:bg-gray-700 text-sm"
+              <a
+                href={url}
+                download={fileName || undefined}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-100 text-sm"
               >
-                退出全螢幕
+                ⬇️ 下載
+              </a>
+              <button
+                onClick={onClose}
+                className="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-100 text-sm"
+                aria-label="關閉"
+              >
+                ✕ 關閉
               </button>
-            )}
-            <a
-              href={url}
-              download={fileName || undefined}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-100 text-sm"
-            >
-              ⬇️ 下載
-            </a>
-            <button
-              onClick={onClose}
-              className="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-100 text-sm"
-              aria-label="關閉"
-            >
-              ✕ 關閉
-            </button>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* 全螢幕：浮動退出按鈕，滑鼠移到頂部才出現 */}
+        {isFullscreen && (
+          <div className="absolute top-0 left-0 right-0 z-10 opacity-0 hover:opacity-100 transition-opacity duration-300">
+            <div className="flex items-center justify-between px-4 py-2 bg-gradient-to-b from-black/70 to-transparent">
+              <span className="text-white/90 text-sm font-medium drop-shadow">
+                {title || '期中報告'} — ESC 退出全螢幕
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={exitFullscreen}
+                  className="bg-white/90 text-gray-800 px-3 py-1.5 rounded-lg hover:bg-white text-sm shadow"
+                >
+                  退出全螢幕
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <iframe
           src={viewerSrc}
           title={title || '期中報告'}
