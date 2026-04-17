@@ -22,6 +22,8 @@ interface Group {
     code?: string;
   };
   studentGroups: Array<{
+    id: string;
+    isLeader: boolean;
     student: {
       id: string;
       name: string;
@@ -44,6 +46,10 @@ export default function GroupsPage() {
   const [viewerFileName, setViewerFileName] = useState<string | null>(null);
   const [viewerTitle, setViewerTitle] = useState('');
   const [deletingReportGroupId, setDeletingReportGroupId] = useState<string | null>(null);
+
+  // 組長設定
+  const [settingLeaderSgId, setSettingLeaderSgId] = useState<string | null>(null);
+  const [bulkAssigning, setBulkAssigning] = useState(false);
 
   const searchParams = useSearchParams();
   const courseId = searchParams.get('courseId');
@@ -97,6 +103,88 @@ export default function GroupsPage() {
     setViewerUrl(null);
     setViewerFileName(null);
     setViewerTitle('');
+  };
+
+  const setLeader = async (
+    groupId: string,
+    studentGroupId: string,
+    studentName: string,
+    groupName: string
+  ) => {
+    if (!confirm(`確定把「${studentName}」設為 ${groupName} 的組長？\n（若原本已有組長會自動取消）`)) return;
+    setSettingLeaderSgId(studentGroupId);
+    setError(null);
+    try {
+      const response = await fetch(`/api/groups/${groupId}/set-leader`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentGroupId }),
+      });
+      const text = await response.text();
+      let data: { error?: string; details?: string } = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error(`設定失敗（回應非 JSON）：${text.slice(0, 200)}`);
+      }
+      if (!response.ok) {
+        throw new Error(data.error || data.details || `設定失敗（HTTP ${response.status}）`);
+      }
+      await fetchGroups();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '設定組長失敗');
+    } finally {
+      setSettingLeaderSgId(null);
+    }
+  };
+
+  const bulkAssignLeaders = async () => {
+    const groupsWithoutLeader = groups.filter(
+      (g) => g.studentGroups.length > 0 && !g.studentGroups.some((sg) => sg.isLeader)
+    );
+    if (groupsWithoutLeader.length === 0) {
+      alert('所有有成員的組都已有組長，無需批次處理');
+      return;
+    }
+    if (!confirm(
+      `將把 ${groupsWithoutLeader.length} 個無組長的組，` +
+      `自動把「最早加入的成員」設為組長。此動作可之後手動調整，是否繼續？`
+    )) return;
+    setBulkAssigning(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/groups/bulk-assign-leaders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(courseId ? { courseId } : {}),
+      });
+      const text = await response.text();
+      let data: {
+        error?: string;
+        details?: string | Array<{ group: string; leader: string }>;
+        assigned?: number;
+        skippedHasLeader?: number;
+      } = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error(`批次失敗（回應非 JSON）：${text.slice(0, 200)}`);
+      }
+      if (!response.ok) {
+        const errDetails = typeof data.details === 'string' ? data.details : '';
+        throw new Error(data.error || errDetails || `批次失敗（HTTP ${response.status}）`);
+      }
+      alert(
+        `批次完成\n` +
+        `✅ 指定：${data.assigned ?? 0} 組\n` +
+        `⏭ 已有組長略過：${data.skippedHasLeader ?? 0} 組`
+      );
+      await fetchGroups();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '批次指定失敗');
+    } finally {
+      setBulkAssigning(false);
+    }
   };
 
   const deleteReport = async (groupId: string, groupName: string) => {
@@ -186,6 +274,15 @@ export default function GroupsPage() {
             className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             🎲 抽籤
+          </button>
+          <button
+            type="button"
+            onClick={bulkAssignLeaders}
+            disabled={groups.length === 0 || bulkAssigning}
+            className="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+            title="把所有無組長的組，自動把最早加入的成員設為組長"
+          >
+            {bulkAssigning ? '處理中...' : '⭐ 批次指定組長'}
           </button>
           <Link
             href={`/groups/new${courseId ? `?courseId=${courseId}` : ''}`}
@@ -292,13 +389,37 @@ export default function GroupsPage() {
                     <p className="text-xs text-gray-500 mb-2">分組學生:</p>
                     <div className="space-y-1">
                       {group.studentGroups.slice(0, 6).map((sg) => (
-                        <div key={sg.student.id} className="text-sm text-gray-700 flex justify-between items-center">
-                          <span>{sg.student.studentId} - {sg.student.name}</span>
-                          {sg.role && (
-                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                              {sg.role}
+                        <div
+                          key={sg.id}
+                          className={`text-sm flex justify-between items-center gap-2 py-0.5 ${
+                            sg.isLeader ? 'bg-yellow-50 -mx-1 px-1 rounded' : ''
+                          }`}
+                        >
+                          <span className="flex items-center gap-1 min-w-0">
+                            {sg.isLeader && <span title="組長">⭐</span>}
+                            <span className="truncate">
+                              {sg.student.studentId} - {sg.student.name}
                             </span>
-                          )}
+                          </span>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {sg.role && (
+                              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                                {sg.role}
+                              </span>
+                            )}
+                            {!sg.isLeader && (
+                              <button
+                                onClick={() =>
+                                  setLeader(group.id, sg.id, sg.student.name, group.name)
+                                }
+                                disabled={settingLeaderSgId === sg.id}
+                                className="text-xs text-yellow-700 hover:text-yellow-900 disabled:text-gray-400"
+                                title="設為組長"
+                              >
+                                {settingLeaderSgId === sg.id ? '設定中...' : '設為組長'}
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))}
                       {group.studentGroups.length > 6 && (
