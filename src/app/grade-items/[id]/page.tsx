@@ -61,24 +61,15 @@ inputs.forEach((el, i) => {
   el.dispatchEvent(new Event("change", { bubbles: true }));
 });`;
 
-// TODO（使用者實作，約 5-8 行）：
-// 輸入：課程所有學生 allStudents、已登記的成績 grades
-// 輸出：換行分隔的分數字串，順序為 studentId 字串升序，缺考者填 "0"
-//
-// 提示：
-// 1. 把 grades 建成 Map<studentId, score>，方便 O(1) 查找
-//    （key 是 g.student.studentId，不是 g.student.id）
-// 2. 把 allStudents 按 studentId 用 localeCompare 排序
-//    localeCompare 第三參數加 { numeric: true } 做自然排序
-//    （不要直接 a < b，"10" 會排在 "2" 前面）
-// 3. map 每個學生：找得到分數就 String(score)，找不到就 "0"
-// 4. .join('\n') 收尾
 function buildScoresText(
   allStudents: Student[],
   grades: GradeDetail['grades']
 ): string {
-  // ← 你填這裡
-  return '';
+  const scoreMap = new Map(grades.map(g => [g.student.studentId, g.score]));
+  return [...allStudents]
+    .sort((a, b) => a.studentId.localeCompare(b.studentId, undefined, { numeric: true }))
+    .map(s => scoreMap.has(s.studentId) ? String(scoreMap.get(s.studentId)) : '0')
+    .join('\n');
 }
 
 export default function GradeItemDetailPage() {
