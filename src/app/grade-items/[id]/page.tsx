@@ -27,6 +27,60 @@ interface GradeDetail {
   }>;
 }
 
+interface Student {
+  id: string;
+  name: string;
+  studentId: string;
+  class?: string;
+}
+
+const SCRIPT_TEMPLATE = (scoresText: string) => `const scoresText = \`
+${scoresText}
+\`;
+
+const scores = scoresText
+  .trim()
+  .split(/\\s+/)
+  .map(s => s.trim())
+  .filter(Boolean);
+
+const inputs = [...document.querySelectorAll("input[type='text'][id]")]
+  .filter(el => /^\\d+$/.test(el.id));
+
+if (scores.length !== inputs.length) {
+  console.warn("\u26a0\ufe0f \u5206\u6578\u6578\u91cf vs \u6b04\u4f4d\u6578\u91cf\u4e0d\u4e00\u81f4", {
+    scores: scores.length,
+    inputs: inputs.length
+  });
+}
+
+inputs.forEach((el, i) => {
+  if (scores[i] == null) return;
+  el.value = scores[i];
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+});`;
+
+// TODO（使用者實作，約 5-8 行）：
+// 輸入：課程所有學生 allStudents、已登記的成績 grades
+// 輸出：換行分隔的分數字串，順序為 studentId 字串升序，缺考者填 "0"
+//
+// 提示：
+// 1. 把 grades 建成 Map<studentId, score>，方便 O(1) 查找
+//    （key 是 g.student.studentId，不是 g.student.id）
+// 2. 把 allStudents 按 studentId 用 localeCompare 排序
+//    localeCompare 第三參數加 { numeric: true } 做自然排序
+//    （不要直接 a < b，"10" 會排在 "2" 前面）
+// 3. map 每個學生：找得到分數就 String(score)，找不到就 "0"
+// 4. .join('\n') 收尾
+function buildScoresText(
+  allStudents: Student[],
+  grades: GradeDetail['grades']
+): string {
+  // ← 你填這裡
+  return '';
+}
+
 export default function GradeItemDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -39,10 +93,43 @@ export default function GradeItemDetailPage() {
   const [exportLoading, setExportLoading] = useState(false);
   const [exportMessage, setExportMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [allStudents, setAllStudents] = useState<Student[]>([]);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
 
   useEffect(() => {
     fetchGradeItemDetail();
   }, [params.id]);
+
+  useEffect(() => {
+    if (!gradeItem?.course.id) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/students?courseId=${gradeItem.course.id}`);
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || '獲取學生清單失敗');
+        }
+        setAllStudents(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '獲取學生清單失敗');
+      }
+    })();
+  }, [gradeItem?.course.id]);
+
+  const handleCopyScript = async () => {
+    if (!gradeItem) return;
+    try {
+      const scriptText = SCRIPT_TEMPLATE(
+        buildScoresText(allStudents, gradeItem.grades)
+      );
+      await navigator.clipboard.writeText(scriptText);
+      setCopyStatus('copied');
+      setTimeout(() => setCopyStatus('idle'), 2000);
+    } catch (err) {
+      setCopyStatus('error');
+      alert(`複製失敗：${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
 
   const fetchGradeItemDetail = async () => {
     try {
@@ -343,6 +430,34 @@ export default function GradeItemDetailPage() {
               <div className="text-sm whitespace-pre-line">{exportMessage.text}</div>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* 複製 JS 腳本（舊系統用） */}
+      <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">📋 複製 JS 腳本（舊系統用）</h3>
+
+        <div className="space-y-4">
+          <div className="text-sm text-gray-700">
+            全班共 <span className="font-semibold">{allStudents.length}</span> 人，
+            其中 <span className="font-semibold text-orange-600">{Math.max(0, allStudents.length - gradeItem.grades.length)}</span> 人未登記成績將以 <span className="font-mono">0</span> 分貼入。
+          </div>
+
+          <button
+            onClick={handleCopyScript}
+            disabled={allStudents.length === 0}
+            className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-medium
+              hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed
+              transition-colors"
+          >
+            {copyStatus === 'copied' ? '已複製 ✓' : '📋 複製腳本到剪貼簿'}
+          </button>
+
+          <div className="text-xs text-gray-500 leading-relaxed">
+            💡 使用方式：到舊系統的成績登記頁 → 按 <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded">F12</kbd> 開啟 DevTools → 切到 <strong>Console</strong> 分頁 → 貼上腳本 → <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded">Enter</kbd> 執行。
+            <br />
+            分數以學號升序排列，舊系統欄位需以相同順序呈現才會正確對位。
+          </div>
         </div>
       </div>
 
