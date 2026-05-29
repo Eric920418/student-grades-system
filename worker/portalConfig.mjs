@@ -114,12 +114,28 @@ async function readCourseInfo(page) {
 
 export async function discoverCourses(page) {
   await page.goto(HOME_URL, { waitUntil: 'load' }).catch(() => {});
-  await page.waitForSelector(MENU_ITEM_SELECTOR, { timeout: 20000 }).catch(() => {});
+  await page.waitForTimeout(1500); // 等 frame/JS 載入
 
-  // 課名清單（順序與選單 td 一致）
-  const names = await page.evaluate((sel) => {
+  // ── 診斷：印出頁面結構，找出選單在哪個 frame ──
+  console.log('home url:', page.url());
+  console.log('title:', await page.title().catch(() => '?'));
+  const frames = page.frames();
+  console.log(`frames: ${frames.length}`);
+  let menuCtx = null;
+  for (const f of frames) {
+    let hasMenu = false, hasLogin = false, tdCount = 0;
+    try { hasMenu = !!(await f.$('#MainLeftMenu_divMyPage')); } catch {}
+    try { hasLogin = !!(await f.$('#Txt_Password')); } catch {}
+    try { tdCount = (await f.$$(MENU_ITEM_SELECTOR)).length; } catch {}
+    console.log(`  frame: url=${f.url()} hasMenu=${hasMenu} hasLogin=${hasLogin} tdLeftMenu=${tdCount}`);
+    if (hasMenu && !menuCtx) menuCtx = f;
+  }
+  if (!menuCtx) menuCtx = page.mainFrame();
+
+  // 課名清單（從找到選單的 frame 讀）
+  const names = await menuCtx.evaluate((sel) => {
     return [...document.querySelectorAll(sel)].map((td) => (td.textContent || '').trim());
-  }, MENU_ITEM_SELECTOR);
+  }, MENU_ITEM_SELECTOR).catch(() => []);
 
   console.log(`選單共 ${names.length} 門課：`, names);
   const results = [];
@@ -127,11 +143,19 @@ export async function discoverCourses(page) {
   for (let idx = 0; idx < names.length; idx++) {
     const name = names[idx];
     try {
-      // 回首頁，用「點擊」觸發 GoToPage（Playwright click 會自動等導航，不會炸 evaluate context）
+      // 回首頁，重新定位選單所在 frame（導航後 frame 參照會失效）
       await page.goto(HOME_URL, { waitUntil: 'load' }).catch(() => {});
-      await page.waitForSelector(MENU_ITEM_SELECTOR, { timeout: 15000 });
-      const items = page.locator(MENU_ITEM_SELECTOR);
+      await page.waitForTimeout(800);
+      let ctx = null;
+      for (const f of page.frames()) {
+        try {
+          if (await f.$('#MainLeftMenu_divMyPage')) { ctx = f; break; }
+        } catch {}
+      }
+      if (!ctx) ctx = page.mainFrame();
+      const items = ctx.locator(MENU_ITEM_SELECTOR);
       if (idx >= (await items.count())) break;
+      // 用點擊觸發 GoToPage（Playwright click 自動等導航，不會炸 evaluate context）
       await items.nth(idx).click();
       await page.waitForLoadState('domcontentloaded').catch(() => {});
 
