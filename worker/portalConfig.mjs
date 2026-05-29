@@ -86,61 +86,63 @@ const HOME_URL = process.env.PORTAL_HOME_URL || 'https://portalx.yzu.edu.tw/Port
  * 進 ClassMate(學生) 讀 #Cos_info(cosid/班別/學期) + 判斷 #divMenuMan(管理) 是否顯示=授課老師。
  * 導航行為待真實 portal 驗證，故每門包 try/catch、把 error 一併回傳，方便看 log 迭代。
  */
-export async function discoverCourses(page) {
-  await page.goto(HOME_URL, { waitUntil: 'domcontentloaded' }).catch(() => {});
+const MENU_ITEM_SELECTOR = '#MainLeftMenu_divMyPage td.tdLeftMenu';
 
-  const menu = await page.evaluate(() => {
-    const items = [...document.querySelectorAll('#MainLeftMenu_divMyPage td[onclick*="GoToPage"]')];
-    return items
-      .map((td) => {
-        const m = (td.getAttribute('onclick') || '').match(/GoToPage\('([^']+)'/);
-        return { pageId: m ? m[1] : null, name: (td.textContent || '').trim() };
-      })
-      .filter((x) => x.pageId);
-  });
-
-  const results = [];
-  for (const { pageId, name } of menu) {
-    try {
-      await page.goto(HOME_URL, { waitUntil: 'domcontentloaded' }).catch(() => {});
-      // 進入該課程（GoToPage 設定課程 session context）
-      await Promise.all([
-        page.waitForLoadState('networkidle').catch(() => {}),
-        page.evaluate((pid) => {
-          if (typeof GoToPage === 'function') GoToPage(pid, 'tdPage0');
-        }, pageId),
-      ]);
-      // 進「學生」名單頁（不帶 cosid，靠 session 課程 context）
-      await page.goto(`${ROSTER_BASE}?Menu=Con`, { waitUntil: 'domcontentloaded' }).catch(() => {});
-
-      const info = await page.evaluate(() => {
-        let cosId = '', cosClass = '', semester = '';
-        const cos = document.querySelector('#Cos_info table');
-        if (cos) {
-          for (const r of cos.querySelectorAll('tr')) {
-            const c = r.querySelectorAll('td');
-            // 資料列：學期(c[1]) 為純數字 1142
-            if (c.length >= 5 && /^\d{3,4}$/.test((c[1].textContent || '').trim())) {
-              semester = (c[1].textContent || '').trim();
-              cosId = (c[2].textContent || '').trim();
-              cosClass = (c[3].textContent || '').trim();
-              break;
-            }
-          }
+async function readCourseInfo(page) {
+  // 進「學生」名單頁（不帶 cosid，靠 session 課程 context）
+  await page.goto(`${ROSTER_BASE}?Menu=Con`, { waitUntil: 'domcontentloaded' }).catch(() => {});
+  return page.evaluate(() => {
+    let cosId = '', cosClass = '', semester = '';
+    const cos = document.querySelector('#Cos_info table');
+    if (cos) {
+      for (const r of cos.querySelectorAll('tr')) {
+        const c = r.querySelectorAll('td');
+        if (c.length >= 5 && /^\d{3,4}$/.test((c[1].textContent || '').trim())) {
+          semester = (c[1].textContent || '').trim(); // 學期 1142
+          cosId = (c[2].textContent || '').trim(); // 課號 IC411
+          cosClass = (c[3].textContent || '').trim(); // 班別 A
+          break;
         }
-        const man = document.querySelector('#divMenuMan');
-        const isInstructor = !!man && getComputedStyle(man).display !== 'none';
-        const studentCount = document.querySelectorAll('#Std_info table tr').length;
-        return { cosId, cosClass, semester, isInstructor, studentCount };
-      });
+      }
+    }
+    const man = document.querySelector('#divMenuMan');
+    const isInstructor = !!man && getComputedStyle(man).display !== 'none';
+    const studentCount = document.querySelectorAll('#Std_info table tr').length;
+    return { cosId, cosClass, semester, isInstructor, studentCount };
+  });
+}
 
+export async function discoverCourses(page) {
+  await page.goto(HOME_URL, { waitUntil: 'load' }).catch(() => {});
+  await page.waitForSelector(MENU_ITEM_SELECTOR, { timeout: 20000 }).catch(() => {});
+
+  // 課名清單（順序與選單 td 一致）
+  const names = await page.evaluate((sel) => {
+    return [...document.querySelectorAll(sel)].map((td) => (td.textContent || '').trim());
+  }, MENU_ITEM_SELECTOR);
+
+  console.log(`選單共 ${names.length} 門課：`, names);
+  const results = [];
+
+  for (let idx = 0; idx < names.length; idx++) {
+    const name = names[idx];
+    try {
+      // 回首頁，用「點擊」觸發 GoToPage（Playwright click 會自動等導航，不會炸 evaluate context）
+      await page.goto(HOME_URL, { waitUntil: 'load' }).catch(() => {});
+      await page.waitForSelector(MENU_ITEM_SELECTOR, { timeout: 15000 });
+      const items = page.locator(MENU_ITEM_SELECTOR);
+      if (idx >= (await items.count())) break;
+      await items.nth(idx).click();
+      await page.waitForLoadState('domcontentloaded').catch(() => {});
+
+      const info = await readCourseInfo(page);
       let year = '', sem = '';
       if (/^\d{4}$/.test(info.semester)) {
         year = info.semester.slice(0, 3);
         sem = info.semester.slice(3);
       }
+      console.log(`  [${idx}] ${name} → cosid=${info.cosId || '(無)'} 學期=${info.semester || '?'} 老師=${info.isInstructor}`);
       results.push({
-        pageId,
         name,
         cosId: info.cosId,
         cosClass: info.cosClass,
@@ -150,7 +152,8 @@ export async function discoverCourses(page) {
         studentCount: info.studentCount,
       });
     } catch (e) {
-      results.push({ pageId, name, error: String((e && e.message) || e) });
+      console.log(`  [${idx}] ${name} → 讀取失敗:`, (e && e.message) || e);
+      results.push({ name, error: String((e && e.message) || e) });
     }
   }
   return results;

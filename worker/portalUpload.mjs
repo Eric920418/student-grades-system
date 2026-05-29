@@ -193,6 +193,7 @@ async function main() {
 
     await reportStatus(jobId, 'success', { filledCount, message, screenshotUrl });
   } catch (err) {
+    console.error('worker 失敗 stack:', (err && err.stack) || err);
     // 失敗也盡量截圖協助除錯
     let screenshotUrl;
     try {
