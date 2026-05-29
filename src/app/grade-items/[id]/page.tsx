@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { buildFillScript } from '@/lib/portalSync';
 
 interface GradeDetail {
   id: string;
@@ -34,42 +35,23 @@ interface Student {
   class?: string;
 }
 
-const SCRIPT_TEMPLATE = (scoresText: string) => `const scoresText = \`
-${scoresText}
-\`;
-
-const scores = scoresText
-  .trim()
-  .split(/\\s+/)
-  .map(s => s.trim())
-  .filter(Boolean);
-
-const inputs = [...document.querySelectorAll("input[type='text'][id]")]
-  .filter(el => /^\\d+$/.test(el.id));
-
-if (scores.length !== inputs.length) {
-  console.warn("\u26a0\ufe0f \u5206\u6578\u6578\u91cf vs \u6b04\u4f4d\u6578\u91cf\u4e0d\u4e00\u81f4", {
-    scores: scores.length,
-    inputs: inputs.length
-  });
-}
-
-inputs.forEach((el, i) => {
-  if (scores[i] == null) return;
-  el.value = scores[i];
-  el.dispatchEvent(new Event("input", { bubbles: true }));
-  el.dispatchEvent(new Event("change", { bubbles: true }));
-});`;
-
-function buildScoresText(
+// \u5efa\u7acb { \u5b78\u865f: \u5206\u6578 } \u5c0d\u61c9\u3002\u672a\u767b\u8a18\u6210\u7e3e\u8005\uff1afillUnrecordedZero \u70ba true \u6642\u586b 0\uff0c\u5426\u5247\u4e0d\u653e\u9032 map\uff08\u8173\u672c\u6703\u8df3\u904e\uff09\u3002
+// \u4e0d\u5728 allStudents\uff08\u672c\u73ed\u540d\u55ae\uff09\u88e1\u7684\u5b78\u751f\u6c38\u9060\u4e0d\u6703\u51fa\u73fe\u5728 map\uff0c\u8173\u672c\u56e0\u6b64\u4e0d\u6703\u8aa4\u586b\u975e\u672c\u73ed\u6210\u7e3e\u3002
+function buildScoreMap(
   allStudents: Student[],
-  grades: GradeDetail['grades']
-): string {
+  grades: GradeDetail['grades'],
+  fillUnrecordedZero: boolean
+): Record<string, number> {
   const scoreMap = new Map(grades.map(g => [g.student.studentId, g.score]));
-  return [...allStudents]
-    .sort((a, b) => a.studentId.localeCompare(b.studentId, undefined, { numeric: true }))
-    .map(s => scoreMap.has(s.studentId) ? String(scoreMap.get(s.studentId)) : '0')
-    .join('\n');
+  const result: Record<string, number> = {};
+  for (const s of allStudents) {
+    if (scoreMap.has(s.studentId)) {
+      result[s.studentId] = scoreMap.get(s.studentId)!;
+    } else if (fillUnrecordedZero) {
+      result[s.studentId] = 0;
+    }
+  }
+  return result;
 }
 
 export default function GradeItemDetailPage() {
@@ -86,6 +68,7 @@ export default function GradeItemDetailPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [allStudents, setAllStudents] = useState<Student[]>([]);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
+  const [fillUnrecordedZero, setFillUnrecordedZero] = useState(false);
 
   useEffect(() => {
     fetchGradeItemDetail();
@@ -110,9 +93,8 @@ export default function GradeItemDetailPage() {
   const handleCopyScript = async () => {
     if (!gradeItem) return;
     try {
-      const scriptText = SCRIPT_TEMPLATE(
-        buildScoresText(allStudents, gradeItem.grades)
-      );
+      const scoreMap = buildScoreMap(allStudents, gradeItem.grades, fillUnrecordedZero);
+      const scriptText = buildFillScript(scoreMap);
       await navigator.clipboard.writeText(scriptText);
       setCopyStatus('copied');
       setTimeout(() => setCopyStatus('idle'), 2000);
@@ -424,15 +406,29 @@ export default function GradeItemDetailPage() {
         </div>
       </div>
 
-      {/* 複製 JS 腳本（舊系統用） */}
+      {/* 複製 JS 腳本（校務系統填分用） */}
       <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">📋 複製 JS 腳本（舊系統用）</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">📋 複製填分腳本（校務系統 portalx 用）</h3>
 
         <div className="space-y-4">
           <div className="text-sm text-gray-700">
-            全班共 <span className="font-semibold">{allStudents.length}</span> 人，
-            其中 <span className="font-semibold text-orange-600">{Math.max(0, allStudents.length - gradeItem.grades.length)}</span> 人未登記成績將以 <span className="font-mono">0</span> 分貼入。
+            全班共 <span className="font-semibold">{allStudents.length}</span> 人，已登記{' '}
+            <span className="font-semibold text-green-600">{gradeItem.grades.length}</span> 人，
+            未登記 <span className="font-semibold text-orange-600">{Math.max(0, allStudents.length - gradeItem.grades.length)}</span> 人。
+            <br />
+            腳本以<strong>學號</strong>比對欄位填入，不依賴排序；找不到對應學號的列會自動跳過，不會誤填非本班學生。
           </div>
+
+          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={fillUnrecordedZero}
+              onChange={(e) => setFillUnrecordedZero(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            未登記成績的學生也填入 <span className="font-mono">0</span> 分
+            <span className="text-gray-400">（預設不勾：跳過不填，避免覆蓋校務系統上既有分數）</span>
+          </label>
 
           <button
             onClick={handleCopyScript}
@@ -445,9 +441,11 @@ export default function GradeItemDetailPage() {
           </button>
 
           <div className="text-xs text-gray-500 leading-relaxed">
-            💡 使用方式：到舊系統的成績登記頁 → 按 <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded">F12</kbd> 開啟 DevTools → 切到 <strong>Console</strong> 分頁 → 貼上腳本 → <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded">Enter</kbd> 執行。
+            💡 使用方式：登入校務系統 → 開啟該成績項目的成績登錄頁 → 按 <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded">F12</kbd> 開啟 DevTools → 切到 <strong>Console</strong> 分頁 → 貼上腳本 → <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded">Enter</kbd> 執行。
             <br />
-            分數以學號升序排列，舊系統欄位需以相同順序呈現才會正確對位。
+            執行後會跳出統計（已填入幾筆、哪些學號找不到欄位）。<strong>提交成績前請先核對統計數字</strong>，建議先用少數學號試填確認無誤再全班執行。
+            <br />
+            若頁面結構特殊導致對不到，可在腳本最上方的 <span className="font-mono">CONFIG</span> 調整 selector 與學號正則。
           </div>
         </div>
       </div>

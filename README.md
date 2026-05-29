@@ -80,13 +80,15 @@
   - 保持原始範本不變，下載全新檔案
   - 支援 .xls 和 .xlsx 格式
   - 顯示導出統計資訊（成功填入數量、未找到的學號等）
-- **📋 複製 JS 腳本（舊系統用）**：
-  - 適用學校舊系統不支援 Excel 匯入、只能靠 DevTools Console 手動貼分數的情境
-  - 一鍵把分數清單包在 `scoresText` 模板字串中複製到剪貼簿
-  - 分數按學號字串升序（`localeCompare` 自然排序）排列，與舊系統欄位 DOM 順序對齊
-  - **缺考學生自動以 0 分填入**（保持位置對齊，避免 `.filter(Boolean)` 吃空行造成整排錯位）
-  - 在舊系統成績登記頁按 F12 → Console 貼上 → Enter 即自動填入所有 `input[type='text'][id]`（id 為純數字）
-  - 按位置對應而非按學號匹配，使用前請確認舊系統欄位順序與學號一致
+- **📋 複製填分腳本（校務系統 portalx 用）**：
+  - 適用學校校務系統不支援 Excel 匯入、只能靠 DevTools Console 手動貼分數的情境
+  - 一鍵把 `{ 學號: 分數 }` 對應內嵌進腳本複製到剪貼簿
+  - **按學號比對欄位**（非按位置順序），portalx 排序/分頁不同也不會錯位
+  - 找不到對應學號的列**自動跳過**，不會誤填非本班學生；不在本班名單的學生永遠不會被填
+  - 可勾選「未登記成績也填 0 分」（預設不勾，避免覆蓋校務系統上既有分數）
+  - 在校務系統成績登錄頁按 F12 → Console 貼上 → Enter 即填入；執行後 alert 顯示防呆統計（已填幾筆、哪些學號找不到欄位）
+  - 腳本最上方的 `CONFIG` 可調整 selector 與學號正則以適配實際頁面結構
+  - 腳本產生邏輯集中於 `src/lib/portalSync.ts`（與「校務同步」頁共用）
 
 ### ✍️ 成績登記（老師專用）
 - **成績項目選擇**：從下拉選單選擇要登記的項目，每次專注登記一個項目
@@ -129,6 +131,39 @@
   - 所有組別評分完成後會顯示友善提示
   - 適合團隊作業、專題報告等情境
   - 大幅提升成績登記效率
+
+### 🔄 校務系統同步（老師專用，`/portal-sync`）
+
+把本系統與學校校務系統（portalx，`portalx.yzu.edu.tw/PortalSocialVB`，ASP.NET WebForms、只能網頁逐格手動輸入）橋接。提供**全自動上傳**與**手動備援**兩條路。
+
+#### 🤖 自動上傳成績（GitHub Actions worker）
+
+在 `/portal-sync` 選成績項目 → 按按鈕 → 觸發 GitHub Actions 臨時 runner，用 Playwright 自動登入 portalx、逐格填分、截圖回報，**跑完即焚**（一學期用 <10 次，免費額度綽綽有餘）。
+
+- **乾跑(dry-run)優先**：預設「只填不送出」，回傳截圖供老師核對無誤後，再切「正式送出」。把寫正式成績這種不可逆操作變可逆。
+- **學號比對填值**：重用 `src/lib/portalSync.ts` 的演算法，找不到對應學號的列自動跳過，不誤填非本班。
+- **架構**：`POST /api/portal-sync/dispatch`（requireAdmin，組 scoreMap、建任務、呼叫 GitHub `repository_dispatch`）→ `.github/workflows/portal-upload.yml` → `worker/portalUpload.mjs`（Playwright）→ 截圖上傳 Vercel Blob → `POST /api/portal-sync/job-status`（共用密鑰驗證）回報 → UI 輪詢 `GET /api/portal-sync/jobs` 顯示狀態。
+- **任務紀錄**：`PortalUploadJob` 表（`portal_upload_jobs`）。
+
+**一次性設定**（採用此功能前）：
+1. **Vercel 環境變數**：`GITHUB_DISPATCH_TOKEN`（fine-grained PAT，限本 repo、Actions read/write）、`GITHUB_REPO`（`Eric920418/student-grades-system`）、`WORKER_CALLBACK_SECRET`（自產長亂數）。
+2. **GitHub Secrets**（repo → Settings → Secrets and variables → Actions）：`PORTAL_USERNAME`、`PORTAL_PASSWORD`、`WORKER_CALLBACK_SECRET`（與 Vercel 同值）、`APP_CALLBACK_URL`（`https://你的網域/api/portal-sync/job-status`）、`BLOB_READ_WRITE_TOKEN`。
+3. **portal selector**：`worker/portalConfig.mjs` 內為合理猜測，需依 portalx 實際登入頁/成績頁 HTML 調整（或用 `PORTAL_*` Secret 覆蓋）。
+
+> ⚠️ 自動操作 portalx 應確認符合學校系統使用規範；寫入正式成績前務必先乾跑 + 用少數學生確認。若 portal 日後改加驗證碼導致自動登入失效，可改用下方手動備援。
+
+#### 手動備援（client 端腳本注入）
+
+腳本跑在老師「**已經登入**」的 portalx 分頁裡操作 DOM，不存帳密、不自動登入。因同源政策改用「剪貼簿 + 貼回」橋接。
+
+- **⬆️ 上傳成績**：在「成績項目」各項目頁複製填分腳本，貼到 portalx 成績登錄頁 Console 執行（見上方說明，按學號比對）。
+- **⬇️ 匯入學生名單/資料（系級、Email）**：
+  - 在 `/portal-sync` 複製「撈取名單腳本」→ 貼到 portalx 名單頁 Console → 抓取結果**自動複製成 JSON 到剪貼簿**
+  - 回到本系統貼上 JSON → **解析預覽（不寫入）**：分成「將新增 / 完全相同(略過) / 有差異(衝突) / 無效列」
+  - **不覆蓋既有資料**：衝突列預設不動，需老師**逐列勾選**才以 portal 值覆蓋；後端 `commit` 在交易內二次確認，只更新勾選欄位
+  - 可調整 selector（`columnMap`）以適配 portalx 實際 HTML，設定存 `localStorage`
+- **API**：`POST /api/portal-sync/students/preview`（只讀比對）、`POST /api/portal-sync/students/commit`（依老師決定寫入），皆 `requireAdmin`
+- **測試夾具**：`public/mock-portal.html` 模擬 portalx 成績登錄頁（亂序、含表頭、混入非本班學號），用於驗證填分腳本對位正確性
 
 ### 🏆 總成績計算
 - **自動化權重計算**：總成績 = Σ(各項目分數/滿分 × 100 × 權重) ÷ Σ權重

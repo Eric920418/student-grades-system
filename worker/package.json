@@ -1,0 +1,13 @@
+{
+  "name": "portal-upload-worker",
+  "private": true,
+  "type": "module",
+  "description": "GitHub Actions worker：用 Playwright 登入 portalx 自動填分。與 Vercel app 分離的依賴，不進 Next.js build。",
+  "scripts": {
+    "start": "node portalUpload.mjs"
+  },
+  "dependencies": {
+    "@vercel/blob": "^0.27.0",
+    "playwright": "^1.49.0"
+  }
+}

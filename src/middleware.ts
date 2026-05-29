@@ -4,10 +4,17 @@ import { jwtVerify } from 'jose';
 const COOKIE_NAME = 'auth-token';
 
 // 公開路由（不需要登入）
-const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/auth/logout', '/api/auth/register'];
+const PUBLIC_PATHS = [
+  '/login',
+  '/api/auth/login',
+  '/api/auth/logout',
+  '/api/auth/register',
+  // GitHub Actions worker 回報任務狀態：無登入 cookie，改由路由內 WORKER_CALLBACK_SECRET 驗證
+  '/api/portal-sync/job-status',
+];
 
 // 老師專用頁面
-const ADMIN_ONLY_PAGES = ['/students', '/grade-items', '/grades', '/groups'];
+const ADMIN_ONLY_PAGES = ['/students', '/grade-items', '/grades', '/groups', '/portal-sync'];
 
 // 學生分組 API（學生也能用）
 const STUDENT_API_PATHS = ['/api/student/', '/api/auth/'];

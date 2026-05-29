@@ -1,0 +1,46 @@
+name: portal-upload
+
+# 由 Vercel app 的 /api/portal-sync/dispatch 透過 repository_dispatch 觸發。
+# 跑完即焚的臨時 runner：登入 portalx、逐格填分、（可選送出）、截圖、回報結果。
+on:
+  repository_dispatch:
+    types: [portal-upload]
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install worker dependencies
+        working-directory: worker
+        run: npm install
+
+      - name: Install Playwright Chromium
+        working-directory: worker
+        run: npx playwright install --with-deps chromium
+
+      - name: Run uploader
+        working-directory: worker
+        env:
+          # 機密（GitHub Secrets）
+          PORTAL_USERNAME: ${{ secrets.PORTAL_USERNAME }}
+          PORTAL_PASSWORD: ${{ secrets.PORTAL_PASSWORD }}
+          WORKER_CALLBACK_SECRET: ${{ secrets.WORKER_CALLBACK_SECRET }}
+          APP_CALLBACK_URL: ${{ secrets.APP_CALLBACK_URL }}
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+          # 任務參數（由 dispatch client_payload 帶入）
+          CLIENT_PAYLOAD: ${{ toJSON(github.event.client_payload) }}
+          # 可選：portal selector / URL 覆蓋（測試假 portal 或微調真實頁面用）
+          PORTAL_LOGIN_URL: ${{ secrets.PORTAL_LOGIN_URL }}
+          PORTAL_GRADE_URL: ${{ secrets.PORTAL_GRADE_URL }}
+          PORTAL_USER_SEL: ${{ secrets.PORTAL_USER_SEL }}
+          PORTAL_PASS_SEL: ${{ secrets.PORTAL_PASS_SEL }}
+          PORTAL_LOGIN_BTN: ${{ secrets.PORTAL_LOGIN_BTN }}
+          PORTAL_SUBMIT_BTN: ${{ secrets.PORTAL_SUBMIT_BTN }}
+        run: node portalUpload.mjs

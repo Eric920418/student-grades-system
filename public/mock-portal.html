@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>模擬 portalx 成績登錄頁（測試用）</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; }
+    table { border-collapse: collapse; margin-bottom: 16px; }
+    th, td { border: 1px solid #ccc; padding: 6px 12px; }
+    #result { white-space: pre-line; background: #f4f4f4; padding: 12px; border-radius: 6px; }
+    button { padding: 8px 16px; font-size: 14px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>模擬 portalx 成績登錄頁（僅供測試填分腳本）</h1>
+  <p>此頁模擬 ASP.NET WebForms GridView：列順序刻意打亂、含表頭列、並混入一筆非本班學號(1109999)。</p>
+
+  <!-- 模擬 WebForms GridView：列順序與本班名單不同 -->
+  <table id="gvScores">
+    <tr>
+      <th>序</th><th>學號</th><th>姓名</th><th>分數</th>
+    </tr>
+    <tr>
+      <td>1</td><td>1101222</td><td>李四</td>
+      <td><input type="text" name="ctl00$gv$ctl02$txtScore" id="ctl00_gv_ctl02_txtScore" /></td>
+    </tr>
+    <tr>
+      <td>2</td><td>1109999</td><td>外班旁聽生</td>
+      <td><input type="text" name="ctl00$gv$ctl03$txtScore" id="ctl00_gv_ctl03_txtScore" /></td>
+    </tr>
+    <tr>
+      <td>3</td><td>1101333</td><td>王五</td>
+      <td><input type="text" name="ctl00$gv$ctl04$txtScore" id="ctl00_gv_ctl04_txtScore" /></td>
+    </tr>
+    <tr>
+      <td>4</td><td>1101111</td><td>張三</td>
+      <td><input type="text" name="ctl00$gv$ctl05$txtScore" id="ctl00_gv_ctl05_txtScore" /></td>
+    </tr>
+  </table>
+
+  <button id="run">執行填分腳本</button>
+  <h3>執行結果</h3>
+  <div id="result">（尚未執行）</div>
+
+  <script>
+    // 把 alert 導向頁面，方便自動化讀取（真實使用時腳本會用原生 alert）
+    document.getElementById('run').addEventListener('click', function () {
+      window.alert = function (m) { document.getElementById('result').textContent = m; };
+
+      /* ===== 以下為成績系統產生的填分腳本（與 SCRIPT_TEMPLATE 邏輯一致）===== */
+      const CONFIG = {
+        rowSelector: "table tr",
+        scoreInput: "input[type='text'], input:not([type])",
+        studentIdRegex: /[A-Za-z]?\d{6,}/,
+      };
+      // 本班名單：張三90、李四85、王五未登記填0。外班生1109999 不在 map。
+      const SCORE_MAP = { "1101111": 90, "1101222": 85, "1101333": 0 };
+
+      (function () {
+        const rows = [...document.querySelectorAll(CONFIG.rowSelector)];
+        const filled = [];
+        const skippedNotInMap = [];
+        const usedIds = new Set();
+        for (const row of rows) {
+          const input = row.querySelector(CONFIG.scoreInput);
+          if (!input) continue;
+          const haystack = [input.name, input.id, row.innerText].filter(Boolean).join(" ");
+          const match = haystack.match(CONFIG.studentIdRegex);
+          if (!match) continue;
+          const sid = match[0];
+          if (Object.prototype.hasOwnProperty.call(SCORE_MAP, sid)) {
+            input.value = String(SCORE_MAP[sid]);
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+            input.dispatchEvent(new Event("change", { bubbles: true }));
+            filled.push(sid);
+            usedIds.add(sid);
+          } else {
+            skippedNotInMap.push(sid);
+          }
+        }
+        const missingInDom = Object.keys(SCORE_MAP).filter((id) => !usedIds.has(id));
+        let msg = "✅ 已填入 " + filled.length + " 筆成績。";
+        msg += "\n已填學號：" + filled.join(", ");
+        msg += "\n略過(非本班/未對應)：" + skippedNotInMap.join(", ");
+        if (missingInDom.length) {
+          msg += "\n⚠️ map 有但頁面找不到：" + missingInDom.join(", ");
+        }
+        alert(msg);
+      })();
+    });
+  </script>
+</body>
+</html>

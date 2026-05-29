@@ -57,6 +57,7 @@ prisma db push        # 同步 schema 到資料庫（不可加 --accept-data-los
 | `/groups?courseId=` | admin | 分組管理 |
 | `/grade-items?courseId=` | admin | 成績項目管理 |
 | `/grades?courseId=` | admin | 成績登記（個人/分組模式） |
+| `/portal-sync?courseId=` | admin | 校務系統(portalx)同步：填分腳本說明、撈名單匯入（預覽+不覆蓋） |
 | `/my-groups` | student | 學生自助分組 |
 | `/login` | public | 登入/註冊 |
 
@@ -65,6 +66,11 @@ prisma db push        # 同步 schema 到資料庫（不可加 --accept-data-los
 - 老師 API 的寫入操作都用 `requireAdmin(request)` 檢查
 - 課程 CRUD API：`GET/POST /api/courses`、`GET/PUT/DELETE /api/courses/[id]`
 - 學生自助 API 在 `/api/student/groups`，使用 `action` 欄位區分操作（join-course、create、join、leave、update-role、set-leader）
+- 校務同步 API 在 `/api/portal-sync/`：
+  - `students/preview`（只讀比對，回 toCreate/identical/conflicts/invalid）、`students/commit`（交易內寫入，只做老師勾選的新增/覆蓋）
+  - `dispatch`（requireAdmin，組 scoreMap、建 `PortalUploadJob`、呼叫 GitHub `repository_dispatch` 觸發自動上傳）、`jobs`（requireAdmin，輪詢任務）、`job-status`（worker 回報，**走 middleware PUBLIC_PATHS**，用 `x-worker-secret` + `WORKER_CALLBACK_SECRET` 驗證）
+  - 腳本產生器/selector/填值演算法集中於 `src/lib/portalSync.ts`
+- 自動上傳 worker：`worker/`（獨立 deps，不進 Vercel build）+ `.github/workflows/portal-upload.yml`，Playwright 登入 portalx 填分。portal 專屬 selector 在 `worker/portalConfig.mjs`（待真實頁面調整）。需 Vercel env `GITHUB_DISPATCH_TOKEN`/`GITHUB_REPO`/`WORKER_CALLBACK_SECRET` 與對應 GitHub Secrets
 - Prisma Client 單例在 `src/lib/prisma.ts`，開發環境掛在 globalThis 避免 hot reload 重複建立連線
 
 ## next.config.js
