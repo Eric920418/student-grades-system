@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import PresentationDrawModal from '@/components/PresentationDrawModal';
+import PresentationTimer from '@/components/PresentationTimer';
 import GroupCommentModal from '@/components/GroupCommentModal';
 
 interface Student {
@@ -73,6 +74,7 @@ export default function GradesPage() {
   const [groupSearchQuery, setGroupSearchQuery] = useState<string>('');
   const [showGradedGroups, setShowGradedGroups] = useState<boolean>(false);
   const [showDrawModal, setShowDrawModal] = useState<boolean>(false);
+  const [showTimer, setShowTimer] = useState<boolean>(false);
   const [drawnOrder, setDrawnOrder] = useState<string[] | null>(null);
   const [groupComments, setGroupComments] = useState<GroupComment[]>([]);
   const [editingCommentGroup, setEditingCommentGroup] = useState<{ groupId: string; groupName: string } | null>(null);
@@ -622,6 +624,13 @@ export default function GradesPage() {
                 <div className="flex items-center gap-3 flex-wrap">
                   <button
                     type="button"
+                    onClick={() => setShowTimer(true)}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                  >
+                    ⏱️ 計時
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setShowDrawModal(true)}
                     disabled={groups.length === 0}
                     className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed text-sm font-medium"
@@ -826,6 +835,8 @@ export default function GradesPage() {
         groups={filteredGroups.map((g) => ({ id: g.id, name: g.name }))}
         onDrawComplete={(orderedIds) => setDrawnOrder(orderedIds)}
       />
+
+      <PresentationTimer open={showTimer} onClose={() => setShowTimer(false)} />
 
       <GroupCommentModal
         open={editingCommentGroup !== null}
