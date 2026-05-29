@@ -145,11 +145,12 @@ model GroupComment {
 // （此表為任務日誌，不需外鍵級聯）。
 model PortalUploadJob {
   id            String   @id @default(cuid())
-  kind          String   @default("grades") // grades | roster
-  courseId      String
-  gradeItemId   String?  // roster 任務用不到
-  gradeItemName String?  // roster 任務用不到
+  kind          String   @default("grades") // grades | roster | discover
+  courseId      String?  // discover 任務不綁單一課程
+  gradeItemId   String?  // roster/discover 用不到
+  gradeItemName String?  // roster/discover 用不到
   status        String   @default("pending") // pending | running | success | failed
+  resultJson    String?  // 結構化結果（如 discover 抓到的課程清單）
   dryRun        Boolean  @default(true)       // true=只填不送出（roster 不適用）
   filledCount   Int?
   totalCount    Int?

@@ -9,9 +9,17 @@ export async function GET(request: NextRequest) {
 
   try {
     const { searchParams } = new URL(request.url);
+    const jobId = searchParams.get('jobId');
     const courseId = searchParams.get('courseId');
+
+    // 依 jobId 取單一任務（discover 任務無 courseId，走這條）
+    if (jobId) {
+      const job = await prisma.portalUploadJob.findUnique({ where: { id: jobId } });
+      return NextResponse.json(job ? [job] : []);
+    }
+
     if (!courseId) {
-      return NextResponse.json({ error: '缺少 courseId' }, { status: 400 });
+      return NextResponse.json({ error: '缺少 courseId 或 jobId' }, { status: 400 });
     }
 
     const jobs = await prisma.portalUploadJob.findMany({

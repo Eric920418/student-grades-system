@@ -29,6 +29,7 @@ export default function Navbar() {
         { href: '/groups', label: '分組管理' },
         { href: '/grade-items', label: '成績項目' },
         { href: '/grades', label: '成績登記' },
+        { href: '/portal-courses', label: '匯入課程' },
         { href: '/portal-sync', label: '校務同步' },
       ]
     : [

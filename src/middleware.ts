@@ -12,10 +12,11 @@ const PUBLIC_PATHS = [
   // GitHub Actions worker 回報任務狀態 / 回寫名單：無登入 cookie，改由路由內 WORKER_CALLBACK_SECRET 驗證
   '/api/portal-sync/job-status',
   '/api/portal-sync/roster',
+  '/api/portal-sync/discover-result',
 ];
 
 // 老師專用頁面
-const ADMIN_ONLY_PAGES = ['/students', '/grade-items', '/grades', '/groups', '/portal-sync'];
+const ADMIN_ONLY_PAGES = ['/students', '/grade-items', '/grades', '/groups', '/portal-sync', '/portal-courses'];
 
 // 學生分組 API（學生也能用）
 const STUDENT_API_PATHS = ['/api/student/', '/api/auth/'];

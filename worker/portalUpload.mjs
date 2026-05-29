@@ -6,7 +6,14 @@
 
 import { chromium } from 'playwright';
 import { put } from '@vercel/blob';
-import { login, gotoGradePage, submit, gotoRoster, scrapeRoster } from './portalConfig.mjs';
+import {
+  login,
+  gotoGradePage,
+  submit,
+  gotoRoster,
+  scrapeRoster,
+  discoverCourses,
+} from './portalConfig.mjs';
 
 const {
   PORTAL_USERNAME,
@@ -52,6 +59,21 @@ async function postRoster(jobId, courseId, rows, dryRun) {
   if (!res.ok) throw new Error(`名單回寫失敗 ${res.status}: ${await res.text()}`);
 }
 
+// 把發現的課程清單回寫 app
+async function postDiscover(jobId, courses) {
+  if (!APP_CALLBACK_URL || !WORKER_CALLBACK_SECRET) {
+    console.log('（未設定 callback，略過 discover 回寫）課數=', courses.length);
+    return;
+  }
+  const url = APP_CALLBACK_URL.replace(/\/job-status\/?$/, '/discover-result');
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-worker-secret': WORKER_CALLBACK_SECRET },
+    body: JSON.stringify({ jobId, courses }),
+  });
+  if (!res.ok) throw new Error(`discover 回寫失敗 ${res.status}: ${await res.text()}`);
+}
+
 async function main() {
   if (!CLIENT_PAYLOAD) throw new Error('缺少 CLIENT_PAYLOAD');
   const payload = JSON.parse(CLIENT_PAYLOAD);
@@ -72,6 +94,14 @@ async function main() {
   const page = await browser.newPage();
   try {
     await login(page, { username: PORTAL_USERNAME, password: PORTAL_PASSWORD });
+
+    // ===== 課程發現模式（唯讀）=====
+    if (payload.mode === 'discover') {
+      const courses = await discoverCourses(page);
+      console.log(`發現 ${courses.length} 門課：`, JSON.stringify(courses, null, 2));
+      await postDiscover(jobId, courses);
+      return; // finally 會關閉 browser
+    }
 
     // ===== 名單同步模式 =====
     if (payload.mode === 'roster') {

@@ -79,6 +79,83 @@ export async function gotoRoster(page, { year, semester, cosId, cosClass }) {
   await page.goto(url, { waitUntil: 'domcontentloaded' });
 }
 
+const HOME_URL = process.env.PORTAL_HOME_URL || 'https://portalx.yzu.edu.tw/PortalSocialVB/';
+
+/**
+ * 發現帳號的所有課程。流程：首頁左側選單取 (pageId, 課名) → 逐門 GoToPage 進課 →
+ * 進 ClassMate(學生) 讀 #Cos_info(cosid/班別/學期) + 判斷 #divMenuMan(管理) 是否顯示=授課老師。
+ * 導航行為待真實 portal 驗證，故每門包 try/catch、把 error 一併回傳，方便看 log 迭代。
+ */
+export async function discoverCourses(page) {
+  await page.goto(HOME_URL, { waitUntil: 'domcontentloaded' }).catch(() => {});
+
+  const menu = await page.evaluate(() => {
+    const items = [...document.querySelectorAll('#MainLeftMenu_divMyPage td[onclick*="GoToPage"]')];
+    return items
+      .map((td) => {
+        const m = (td.getAttribute('onclick') || '').match(/GoToPage\('([^']+)'/);
+        return { pageId: m ? m[1] : null, name: (td.textContent || '').trim() };
+      })
+      .filter((x) => x.pageId);
+  });
+
+  const results = [];
+  for (const { pageId, name } of menu) {
+    try {
+      await page.goto(HOME_URL, { waitUntil: 'domcontentloaded' }).catch(() => {});
+      // 進入該課程（GoToPage 設定課程 session context）
+      await Promise.all([
+        page.waitForLoadState('networkidle').catch(() => {}),
+        page.evaluate((pid) => {
+          if (typeof GoToPage === 'function') GoToPage(pid, 'tdPage0');
+        }, pageId),
+      ]);
+      // 進「學生」名單頁（不帶 cosid，靠 session 課程 context）
+      await page.goto(`${ROSTER_BASE}?Menu=Con`, { waitUntil: 'domcontentloaded' }).catch(() => {});
+
+      const info = await page.evaluate(() => {
+        let cosId = '', cosClass = '', semester = '';
+        const cos = document.querySelector('#Cos_info table');
+        if (cos) {
+          for (const r of cos.querySelectorAll('tr')) {
+            const c = r.querySelectorAll('td');
+            // 資料列：學期(c[1]) 為純數字 1142
+            if (c.length >= 5 && /^\d{3,4}$/.test((c[1].textContent || '').trim())) {
+              semester = (c[1].textContent || '').trim();
+              cosId = (c[2].textContent || '').trim();
+              cosClass = (c[3].textContent || '').trim();
+              break;
+            }
+          }
+        }
+        const man = document.querySelector('#divMenuMan');
+        const isInstructor = !!man && getComputedStyle(man).display !== 'none';
+        const studentCount = document.querySelectorAll('#Std_info table tr').length;
+        return { cosId, cosClass, semester, isInstructor, studentCount };
+      });
+
+      let year = '', sem = '';
+      if (/^\d{4}$/.test(info.semester)) {
+        year = info.semester.slice(0, 3);
+        sem = info.semester.slice(3);
+      }
+      results.push({
+        pageId,
+        name,
+        cosId: info.cosId,
+        cosClass: info.cosClass,
+        year,
+        semester: sem,
+        isInstructor: info.isInstructor,
+        studentCount: info.studentCount,
+      });
+    } catch (e) {
+      results.push({ pageId, name, error: String((e && e.message) || e) });
+    }
+  }
+  return results;
+}
+
 /**
  * 解析名單頁 #Std_info 表，回傳 [{ studentId, name, email, withdrawn }]。
  * 對應已確認結構：欄位 [1]學號 [2]姓名(中文(英文)) [5]E-Mail(mailto)；停修者姓名含「(停修)」。

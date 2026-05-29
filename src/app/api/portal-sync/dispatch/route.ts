@@ -40,10 +40,10 @@ export async function POST(request: NextRequest) {
       gradeItemId?: string;
       dryRun?: boolean;
       fillUnrecordedZero?: boolean;
-      mode?: 'grades' | 'roster';
+      mode?: 'grades' | 'roster' | 'discover';
     };
 
-    if (!courseId) {
+    if (mode !== 'discover' && !courseId) {
       return NextResponse.json({ error: '缺少 courseId' }, { status: 400 });
     }
 
@@ -57,6 +57,25 @@ export async function POST(request: NextRequest) {
         },
         { status: 500 }
       );
+    }
+
+    // === 課程發現模式（唯讀，不需 courseId）===
+    if (mode === 'discover') {
+      const job = await prisma.portalUploadJob.create({
+        data: { kind: 'discover', status: 'pending', dryRun: true },
+      });
+      const ghRes = await callRepositoryDispatch(repo, token, { mode: 'discover', jobId: job.id });
+      if (!ghRes.ok) {
+        await prisma.portalUploadJob.update({
+          where: { id: job.id },
+          data: { status: 'failed', message: `GitHub 觸發失敗 (${ghRes.status}): ${ghRes.text}` },
+        });
+        return NextResponse.json(
+          { error: 'GitHub Actions 觸發失敗', details: `HTTP ${ghRes.status}: ${ghRes.text}` },
+          { status: 502 }
+        );
+      }
+      return NextResponse.json({ jobId: job.id, mode: 'discover' });
     }
 
     // === 名單同步模式 ===
