@@ -6,7 +6,7 @@
 
 import { chromium } from 'playwright';
 import { put } from '@vercel/blob';
-import { login, gotoGradePage, submit } from './portalConfig.mjs';
+import { login, gotoGradePage, submit, gotoRoster, scrapeRoster } from './portalConfig.mjs';
 
 const {
   PORTAL_USERNAME,
@@ -37,6 +37,21 @@ async function reportStatus(jobId, status, extra = {}) {
   }
 }
 
+// 把撈到的名單回寫 app（roster 端點與 job-status 同網域，換路徑即可）
+async function postRoster(jobId, courseId, rows, dryRun) {
+  if (!APP_CALLBACK_URL || !WORKER_CALLBACK_SECRET) {
+    console.log('（未設定 callback，略過名單回寫）筆數=', rows.length);
+    return;
+  }
+  const url = APP_CALLBACK_URL.replace(/\/job-status\/?$/, '/roster');
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-worker-secret': WORKER_CALLBACK_SECRET },
+    body: JSON.stringify({ jobId, courseId, rows, dryRun }),
+  });
+  if (!res.ok) throw new Error(`名單回寫失敗 ${res.status}: ${await res.text()}`);
+}
+
 async function main() {
   if (!CLIENT_PAYLOAD) throw new Error('缺少 CLIENT_PAYLOAD');
   const payload = JSON.parse(CLIENT_PAYLOAD);
@@ -57,6 +72,34 @@ async function main() {
   const page = await browser.newPage();
   try {
     await login(page, { username: PORTAL_USERNAME, password: PORTAL_PASSWORD });
+
+    // ===== 名單同步模式 =====
+    if (payload.mode === 'roster') {
+      const { portal, courseId } = payload;
+      const allRows = [];
+      let withdrawnCount = 0;
+      for (const cosClass of portal.classes) {
+        await gotoRoster(page, {
+          year: portal.year,
+          semester: portal.semester,
+          cosId: portal.cosId,
+          cosClass,
+        });
+        const rows = await scrapeRoster(page);
+        for (const r of rows) {
+          if (r.withdrawn) {
+            withdrawnCount++;
+            continue; // 跳過停修
+          }
+          allRows.push({ studentId: r.studentId, name: r.name, email: r.email, class: cosClass });
+        }
+      }
+      await postRoster(jobId, courseId, allRows, dryRun);
+      console.log(`名單同步完成：抓到 ${allRows.length} 筆，跳過停修 ${withdrawnCount} 筆`);
+      return; // finally 會關閉 browser
+    }
+
+    // ===== 成績上傳模式 =====
     await gotoGradePage(page, payload);
 
     // 在頁面內執行填值演算法（與 src/lib/portalSync.ts 的 FILL_FUNCTION_SOURCE 同一套邏輯，

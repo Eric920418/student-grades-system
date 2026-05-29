@@ -57,13 +57,14 @@ export interface ScrapeSelectorConfig {
   columnMap: ScrapeColumnMap;
 }
 
+// 對應 portalx 名單頁 ClassMate.aspx 的真實結構（#Std_info 表）。
+// 班別(A/B)不是列欄位、而是頁面層級(cosclass)，故 columnMap 不含 class。
 export const DEFAULT_SCRAPE_CONFIG: ScrapeSelectorConfig = {
-  rowSelector: 'table tr',
+  rowSelector: '#Std_info table tr',
   columnMap: {
-    studentId: 'td:nth-child(1)',
-    name: 'td:nth-child(2)',
-    class: 'td:nth-child(3)',
-    email: 'td:nth-child(4)',
+    studentId: 'td:nth-child(2)',
+    name: 'td:nth-child(3)',
+    email: 'td:nth-child(6)',
   },
 };
 

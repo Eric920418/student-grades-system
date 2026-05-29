@@ -11,15 +11,11 @@ export const portalConfig = {
     process.env.PORTAL_LOGIN_URL ||
     'https://portalx.yzu.edu.tw/PortalSocialVB/Login.aspx',
 
-  // TODO(實際 selector 待確認) — ASP.NET WebForms 常見命名的猜測
-  usernameSelector:
-    process.env.PORTAL_USER_SEL ||
-    'input[name*="Account"], input[name*="UserName"], input[type="text"]',
-  passwordSelector: process.env.PORTAL_PASS_SEL || 'input[type="password"]',
-  loginButtonSelector:
-    process.env.PORTAL_LOGIN_BTN ||
-    'input[type="submit"], button[type="submit"]',
-  // 登入成功的判斷依據（出現此 selector 視為已登入）。待確認。
+  // 已從公開登入頁(Login.aspx)確認的真實 selector（ASP.NET WebForms，無驗證碼）
+  usernameSelector: process.env.PORTAL_USER_SEL || '#Txt_UserID',
+  passwordSelector: process.env.PORTAL_PASS_SEL || '#Txt_Password',
+  loginButtonSelector: process.env.PORTAL_LOGIN_BTN || '#ibnSubmit',
+  // 登入成功的判斷依據（出現此 selector 視為已登入）。待確認登入後首頁的元素。
   loginSuccessSelector: process.env.PORTAL_LOGIN_OK_SEL || '',
 
   // 成績登錄頁：先支援「直達 URL」(若 portalx 該頁有固定網址)。
@@ -67,4 +63,47 @@ export async function submit(page) {
     page.waitForLoadState('networkidle').catch(() => {}),
     page.click(portalConfig.submitButtonSelector),
   ]);
+}
+
+// ===== 名單撈取 =====
+
+const ROSTER_BASE =
+  process.env.PORTAL_ROSTER_BASE ||
+  'https://portalx.yzu.edu.tw/PortalSocialVB/TCon/ClassMate.aspx';
+
+/** 導到某課程某班的名單頁（直接帶網址參數，不必模擬 select 點擊）。 */
+export async function gotoRoster(page, { year, semester, cosId, cosClass }) {
+  const url = `${ROSTER_BASE}?Menu=Con&y=${encodeURIComponent(year)}&s=${encodeURIComponent(
+    semester
+  )}&cosid=${encodeURIComponent(cosId)}&cosclass=${encodeURIComponent(cosClass)}`;
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+}
+
+/**
+ * 解析名單頁 #Std_info 表，回傳 [{ studentId, name, email, withdrawn }]。
+ * 對應已確認結構：欄位 [1]學號 [2]姓名(中文(英文)) [5]E-Mail(mailto)；停修者姓名含「(停修)」。
+ */
+export async function scrapeRoster(page) {
+  return page.evaluate(() => {
+    const out = [];
+    const rows = [...document.querySelectorAll('#Std_info table tr')];
+    for (const tr of rows) {
+      if (tr.classList.contains('title_line')) continue;
+      const cells = tr.querySelectorAll('td');
+      if (cells.length < 6) continue;
+      const studentId = (cells[1].textContent || '').trim();
+      if (!/^\d{6,}$/.test(studentId)) continue; // 跳過表頭/非資料列
+      const nameRaw = (cells[2].textContent || '').trim();
+      const withdrawn = /停修/.test(nameRaw);
+      const name = nameRaw.split('(')[0].replace(/\s+/g, ' ').trim();
+      let email = '';
+      const a = cells[5].querySelector('a');
+      if (a) {
+        const addrs = (a.getAttribute('href') || '').replace(/^mailto:/i, '').split(';');
+        email = addrs.find((x) => /@mail\.yzu\.edu\.tw/i.test(x)) || addrs[0] || '';
+      }
+      out.push({ studentId, name, email: email.trim(), withdrawn });
+    }
+    return out;
+  });
 }

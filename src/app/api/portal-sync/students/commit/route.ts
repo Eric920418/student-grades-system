@@ -63,6 +63,13 @@ export async function POST(request: NextRequest) {
             courseId,
           },
         });
+        // 同步建立登入帳號（已停用自助註冊，名單匯入是學生取得登入帳號的唯一途徑）。
+        // 已存在則不覆蓋（update:{}），避免改動既有帳號的姓名/班級。
+        await tx.account.upsert({
+          where: { studentId },
+          update: {},
+          create: { studentId, name: row.name, class: row.class?.trim() || 'A' },
+        });
         result.created++;
       }
 

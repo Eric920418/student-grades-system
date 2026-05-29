@@ -44,7 +44,7 @@ prisma db push        # 同步 schema 到資料庫（不可加 --accept-data-los
 
 - **多課程隔離**：Student、Group、GradeItem 都透過 `courseId` 關聯到 Course，同一學號可存在於不同課程
 - **分班控制**：Course 上的 `hasClassDivision` 欄位控制是否啟用 A/B 分班，前端學生管理、註冊頁面據此隱藏/顯示班級欄位
-- **Account vs Student**：Account 是登入帳號（學號全域唯一），Student 是課程內的學生記錄（同課程內學號唯一）。學生加入課程時建立 Student 記錄
+- **Account vs Student**：Account 是登入帳號（學號全域唯一），Student 是課程內的學生記錄（同課程內學號唯一）。**已停用自助註冊/選課**：Student+Account 改由老師從 portalx 同步名單時建立（commit / roster 端點 `account.upsert`）；學生只登入。`/api/auth/register` 與 `handleJoinCourse` 回 403
 - **唯一約束**：`@@unique([studentId, courseId])` 在 Student、`@@unique([name, courseId])` 在 Group 和 GradeItem、`@@unique([studentId, gradeItemId])` 在 Grade
 - 所有外鍵都設定 `onDelete: Cascade`
 

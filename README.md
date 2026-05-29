@@ -6,8 +6,8 @@
 
 ### 🔐 認證與權限管理
 - **雙角色系統**：老師和學生兩種角色
-- **學生自行註冊**：首次使用的學生可在登入頁點「點此註冊」，輸入學號、姓名、班級即可註冊
-- **學生登入**：輸入學號即可登入（密碼 = 學號，有意簡化設計）
+- **學生名單由校務系統匯入（已停用自助註冊）**：學生不再自行註冊/選課，老師從 portalx 同步名單後，學生即可直接以學號登入。`/api/auth/register` 與自助加入課程已停用。
+- **學生登入**：輸入學號即可登入（密碼 = 學號，有意簡化設計）；查無名單者提示「請聯絡授課老師」
 - **舊學生相容**：已在 Student 表中的舊學生首次登入會自動建立 Account，無縫過渡
 - **老師登入**：帳號 `admin` / 密碼 `peopleone`
 - **路由保護**：未登入自動導向登入頁，學生無法訪問管理功能
@@ -52,7 +52,7 @@
 - **PDF 檢視器**：使用瀏覽器原生 PDF viewer（iframe + `#toolbar=1&view=FitH`）+ Fullscreen API，不打包 react-pdf
 
 ### 🙋 學生自助分組（學生專用）
-- **加入課程**：註冊後在「我的分組」頁面查看可用課程列表，點擊「加入」即可加入課程
+- **課程由名單決定**：學生所屬課程由老師從校務系統匯入名單決定（已停用自助加入課程）
 - **我的分組頁面**：登入後查看所有已加入課程的分組狀態
 - **建立新分組**：自動成為組長（isLeader），自動命名
 - **加入現有分組**：從可用分組列表中選擇加入
@@ -152,6 +152,17 @@
 
 > ⚠️ 自動操作 portalx 應確認符合學校系統使用規範；寫入正式成績前務必先乾跑 + 用少數學生確認。若 portal 日後改加驗證碼導致自動登入失效，可改用下方手動備援。
 
+#### 🧑‍🎓 從 portal 自動同步學生名單（GitHub Actions worker）
+
+在 `/portal-sync` 為課程填妥 portal 對應（課號 cosid / 學年 y / 學期 s）→ 按「同步名單」→ worker 登入 portalx、抓 `ClassMate.aspx` 名單頁（A/B 班直接以網址 `cosclass` 參數各別抓取）→ 回寫系統。
+
+- **只新增、不覆蓋**：自動建立缺少的學生；既有資料一律不動，差異列標示待老師檢視（守住「不可覆蓋」）。
+- **同時建立登入帳號**：匯入時 `account.upsert`，學生可直接以學號登入（取代自助註冊）。
+- **停修自動跳過**（姓名含「(停修)」）。
+- **架構**：`POST /api/portal-sync/dispatch`（`mode:'roster'`）→ worker `gotoRoster`/`scrapeRoster`（`worker/portalConfig.mjs`）→ `POST /api/portal-sync/roster`（worker-secret 驗證）→ 任務記於 `PortalUploadJob(kind='roster')`。
+- **課程對應**：存於 `Course.portalCosId/portalYear/portalSemester`，由 `POST /api/portal-sync/course-config` 設定。
+- 名單頁結構：`#Std_info` 表，欄位 [2]學號 [3]姓名 [6]E-Mail；班別取自抓取的 `cosclass`。測試夾具 `public/mock-classmate.html`。
+
 #### 手動備援（client 端腳本注入）
 
 腳本跑在老師「**已經登入**」的 portalx 分頁裡操作 DOM，不存帳密、不自動登入。因同源政策改用「剪貼簿 + 貼回」橋接。
@@ -247,8 +258,8 @@ pnpm start
 | 角色 | 帳號 | 密碼 | 登入後頁面 |
 |------|------|------|-----------|
 | 老師 | admin | peopleone | 首頁（全部功能） |
-| 學生（已註冊） | 學號 | 與學號相同 | /my-groups（我的分組） |
-| 學生（新生） | - | - | 在登入頁點「點此註冊」 |
+| 學生（已在名單） | 學號 | 與學號相同 | /my-groups（我的分組） |
+| 學生（不在名單） | - | - | 無法登入，請老師從校務系統匯入名單 |
 
 ### 權限對照表
 | 功能 | 老師 | 學生 |
@@ -385,7 +396,7 @@ pnpm start
 
 #### 認證 API
 - `POST /api/auth/login` - 登入（學生或老師）
-- `POST /api/auth/register` - 學生註冊（學號+姓名+班級）
+- `POST /api/auth/register` - 已停用（回 403）；學生帳號改由名單匯入建立
 - `POST /api/auth/logout` - 登出
 - `GET /api/auth/me` - 取得當前用戶資訊
 

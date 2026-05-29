@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <title>模擬 portalx 名單頁 ClassMate（測試用）</title>
+</head>
+<body>
+  <h1>模擬 ClassMate.aspx 名單頁（僅供測試 worker 撈名單解析）</h1>
+  <!-- 模仿真實結構：#Std_info > table.table_1，欄位 序號/學號/姓名/英文暱稱/科系年級班/E-Mail，含一筆停修 -->
+  <div id="Std_info">
+    <table width="720" cellpadding="3" cellspacing="0" class="table_1">
+      <tbody>
+        <tr class="title_line">
+          <td>序號</td><td>學號</td><td>姓名</td><td>英文暱稱</td><td>科系年級班</td><td>E-Mail</td>
+        </tr>
+        <tr>
+          <td align="center">1</td>
+          <td>1083535   </td>
+          <td>李美文<br>(LI, MEI-WEN)</td>
+          <td>Ashley</td>
+          <td>資訊傳播學系學士班 6A</td>
+          <td><a href="mailto:s1083535@mail.yzu.edu.tw;ashley0213@163.com">s1083535@mail.yzu.edu.tw<br>ashley0213@163.com</a></td>
+        </tr>
+        <tr class="hi_line">
+          <td align="center">2</td>
+          <td>1101804   </td>
+          <td>黃　翊<br>(HUANG, YI)</td>
+          <td>Arthur</td>
+          <td>資訊傳播學系學士班 5A</td>
+          <td><a href="mailto:s1101804@mail.yzu.edu.tw">s1101804@mail.yzu.edu.tw</a></td>
+        </tr>
+        <tr>
+          <td align="center">3</td>
+          <td>1143574   </td>
+          <td>徐瑞鴻<br>(HSU, JUI-HUNG) <font color="red">(停修)</font></td>
+          <td></td>
+          <td>資訊學院英語學士班 1A</td>
+          <td><a href="mailto:s1143574@mail.yzu.edu.tw">s1143574@mail.yzu.edu.tw</a></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

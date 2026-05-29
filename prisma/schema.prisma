@@ -25,6 +25,10 @@ model Course {
   description      String?  // 課程描述
   hasClassDivision Boolean  @default(false) // 是否啟用 A/B 分班
   allowStudentGrouping Boolean  @default(true) // 是否允許學生自助分組
+  // portalx 課程對應（自動撈名單用）：例 IC411 / 學年114 / 學期2
+  portalCosId      String?
+  portalYear       String?
+  portalSemester   String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -141,11 +145,12 @@ model GroupComment {
 // （此表為任務日誌，不需外鍵級聯）。
 model PortalUploadJob {
   id            String   @id @default(cuid())
+  kind          String   @default("grades") // grades | roster
   courseId      String
-  gradeItemId   String
-  gradeItemName String
+  gradeItemId   String?  // roster 任務用不到
+  gradeItemName String?  // roster 任務用不到
   status        String   @default("pending") // pending | running | success | failed
-  dryRun        Boolean  @default(true)       // true=只填不送出
+  dryRun        Boolean  @default(true)       // true=只填不送出（roster 不適用）
   filledCount   Int?
   totalCount    Int?
   message       String?  // 結果/錯誤訊息（完整顯示前端）

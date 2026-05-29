@@ -39,7 +39,8 @@ interface GradeItem {
 }
 interface UploadJob {
   id: string;
-  gradeItemName: string;
+  kind: 'grades' | 'roster';
+  gradeItemName: string | null;
   status: 'pending' | 'running' | 'success' | 'failed';
   dryRun: boolean;
   filledCount: number | null;
@@ -92,6 +93,14 @@ export default function PortalSyncPage() {
   const [dispatching, setDispatching] = useState(false);
   const [jobs, setJobs] = useState<UploadJob[]>([]);
 
+  // portal 課程對應 + 名單同步
+  const [portalCosId, setPortalCosId] = useState('');
+  const [portalYear, setPortalYear] = useState('');
+  const [portalSemester, setPortalSemester] = useState('');
+  const [savingConfig, setSavingConfig] = useState(false);
+  const [configSaved, setConfigSaved] = useState(false);
+  const [syncingRoster, setSyncingRoster] = useState(false);
+
   const storageKey = courseId ? `portalScrapeConfig:${courseId}` : 'portalScrapeConfig';
 
   useEffect(() => {
@@ -114,6 +123,9 @@ export default function PortalSyncPage() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || '獲取課程失敗');
         setCourseName(data.name || '');
+        setPortalCosId(data.portalCosId || '');
+        setPortalYear(data.portalYear || '');
+        setPortalSemester(data.portalSemester || '');
       } catch (err) {
         setError(err instanceof Error ? err.message : '獲取課程失敗');
       }
@@ -184,6 +196,47 @@ export default function PortalSyncPage() {
       setError(err instanceof Error ? err.message : '觸發上傳失敗');
     } finally {
       setDispatching(false);
+    }
+  };
+
+  const handleSaveConfig = async () => {
+    setError(null);
+    setConfigSaved(false);
+    try {
+      setSavingConfig(true);
+      const res = await fetch('/api/portal-sync/course-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId, portalCosId, portalYear, portalSemester }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.details ? `${data.error}：${data.details}` : data.error);
+      setConfigSaved(true);
+      setTimeout(() => setConfigSaved(false), 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '儲存 portal 對應失敗');
+    } finally {
+      setSavingConfig(false);
+    }
+  };
+
+  const handleSyncRoster = async () => {
+    setError(null);
+    try {
+      setSyncingRoster(true);
+      const res = await fetch('/api/portal-sync/dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId, mode: 'roster' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.details ? `${data.error}：${data.details}` : data.error);
+      const jobsRes = await fetch(`/api/portal-sync/jobs?courseId=${courseId}`);
+      if (jobsRes.ok) setJobs(await jobsRes.json());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '觸發名單同步失敗');
+    } finally {
+      setSyncingRoster(false);
     }
   };
 
@@ -292,6 +345,10 @@ export default function PortalSyncPage() {
     );
   }
 
+  const gradeJobs = jobs.filter((j) => j.kind !== 'roster');
+  const rosterJobs = jobs.filter((j) => j.kind === 'roster');
+  const portalConfigComplete = !!(portalCosId && portalYear && portalSemester);
+
   return (
     <div className="space-y-6">
       <div>
@@ -312,6 +369,92 @@ export default function PortalSyncPage() {
           {error}
         </div>
       )}
+
+      {/* 從 portal 自動同步學生名單（GitHub Actions worker） */}
+      <div className="bg-white rounded-lg shadow-sm p-4 md:p-6 space-y-4 border-2 border-emerald-100">
+        <h3 className="text-lg font-semibold text-gray-900">🧑‍🎓 從 portal 同步學生名單</h3>
+        <p className="text-sm text-gray-600 leading-relaxed">
+          自動登入 portalx、抓取此課程的學生名單寫入系統（<strong>只新增、不覆蓋</strong>既有資料；差異列會標示待你檢視；停修自動跳過）。
+          匯入的學生會同時建立登入帳號，可直接以學號登入——學生不需自助註冊。
+        </p>
+
+        {/* portal 課程對應 */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <label className="block">
+            <span className="text-xs text-gray-600">portal 課號 (cosid)</span>
+            <input
+              type="text"
+              value={portalCosId}
+              onChange={(e) => setPortalCosId(e.target.value)}
+              placeholder="如 IC411"
+              className="mt-1 w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-emerald-500"
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs text-gray-600">學年 (y)</span>
+            <input
+              type="text"
+              value={portalYear}
+              onChange={(e) => setPortalYear(e.target.value)}
+              placeholder="如 114"
+              className="mt-1 w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-emerald-500"
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs text-gray-600">學期 (s)</span>
+            <input
+              type="text"
+              value={portalSemester}
+              onChange={(e) => setPortalSemester(e.target.value)}
+              placeholder="如 2"
+              className="mt-1 w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-emerald-500"
+            />
+          </label>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleSaveConfig}
+            disabled={savingConfig}
+            className="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-900 disabled:bg-gray-300 transition-colors"
+          >
+            {savingConfig ? '儲存中…' : configSaved ? '已儲存 ✓' : '儲存對應'}
+          </button>
+          <button
+            onClick={handleSyncRoster}
+            disabled={syncingRoster || !portalConfigComplete}
+            className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            title={portalConfigComplete ? '' : '請先填寫並儲存 portal 課號/學年/學期'}
+          >
+            {syncingRoster ? '觸發中…' : '🔄 同步名單'}
+          </button>
+        </div>
+
+        {rosterJobs.length > 0 && (
+          <div className="space-y-2">
+            <div className="text-sm font-medium text-gray-700">最近的名單同步</div>
+            {rosterJobs.map((job) => (
+              <div key={job.id} className="border border-gray-200 rounded-lg p-3 text-sm space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`px-2 py-0.5 rounded-full text-xs ${JOB_STATUS_COLOR[job.status]}`}>
+                    {JOB_STATUS_LABEL[job.status] || job.status}
+                  </span>
+                  {job.totalCount != null && (
+                    <span className="text-xs text-gray-500">抓到 {job.totalCount} 筆</span>
+                  )}
+                  <span className="text-xs text-gray-400 ml-auto">
+                    {new Date(job.createdAt).toLocaleString('zh-TW')}
+                  </span>
+                </div>
+                {job.message && (
+                  <div className={`text-xs whitespace-pre-line ${job.status === 'failed' ? 'text-red-600' : 'text-gray-600'}`}>
+                    {job.message}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* 自動上傳成績到 portal（GitHub Actions worker） */}
       <div className="bg-white rounded-lg shadow-sm p-4 md:p-6 space-y-4 border-2 border-blue-100">
@@ -375,10 +518,10 @@ export default function PortalSyncPage() {
         </button>
 
         {/* 任務狀態列表 */}
-        {jobs.length > 0 && (
+        {gradeJobs.length > 0 && (
           <div className="space-y-2">
             <div className="text-sm font-medium text-gray-700">最近的上傳任務</div>
-            {jobs.map((job) => (
+            {gradeJobs.map((job) => (
               <div key={job.id} className="border border-gray-200 rounded-lg p-3 text-sm space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className={`px-2 py-0.5 rounded-full text-xs ${JOB_STATUS_COLOR[job.status]}`}>

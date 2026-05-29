@@ -70,8 +70,11 @@ export async function POST(request: NextRequest) {
         return response;
       }
 
-      // 3. 都沒有
-      return NextResponse.json({ error: '學號不存在，請先註冊' }, { status: 401 });
+      // 3. 都沒有 → 不在名單中（自助註冊已停用，名單由老師從校務系統匯入）
+      return NextResponse.json(
+        { error: '查無此學號，你尚未在課程名單中，請聯絡授課老師' },
+        { status: 401 }
+      );
     }
 
     if (type === 'admin') {

@@ -9,8 +9,9 @@ const PUBLIC_PATHS = [
   '/api/auth/login',
   '/api/auth/logout',
   '/api/auth/register',
-  // GitHub Actions worker 回報任務狀態：無登入 cookie，改由路由內 WORKER_CALLBACK_SECRET 驗證
+  // GitHub Actions worker 回報任務狀態 / 回寫名單：無登入 cookie，改由路由內 WORKER_CALLBACK_SECRET 驗證
   '/api/portal-sync/job-status',
+  '/api/portal-sync/roster',
 ];
 
 // 老師專用頁面

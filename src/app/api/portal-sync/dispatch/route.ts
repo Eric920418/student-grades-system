@@ -3,8 +3,26 @@ import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
 import { DEFAULT_FILL_CONFIG } from '@/lib/portalSync';
 
-// 觸發 GitHub Actions worker 去 portalx 自動填分。
-// 流程：組 { 學號: 分數 } → 建 PortalUploadJob(pending) → 呼叫 GitHub repository_dispatch。
+// 呼叫 GitHub repository_dispatch 觸發 worker。回傳結果供呼叫端處理失敗。
+async function callRepositoryDispatch(
+  repo: string,
+  token: string,
+  clientPayload: Record<string, unknown>
+): Promise<{ ok: boolean; status: number; text: string }> {
+  const res = await fetch(`https://api.github.com/repos/${repo}/dispatches`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ event_type: 'portal-upload', client_payload: clientPayload }),
+  });
+  return { ok: res.ok, status: res.status, text: res.ok ? '' : await res.text() };
+}
+
+// 觸發 GitHub Actions worker 去 portalx：mode='grades' 自動填分、mode='roster' 自動撈名單。
 export async function POST(request: NextRequest) {
   const adminError = requireAdmin(request);
   if (adminError) return adminError;
@@ -16,15 +34,17 @@ export async function POST(request: NextRequest) {
       gradeItemId,
       dryRun = true,
       fillUnrecordedZero = false,
+      mode = 'grades',
     } = body as {
       courseId?: string;
       gradeItemId?: string;
       dryRun?: boolean;
       fillUnrecordedZero?: boolean;
+      mode?: 'grades' | 'roster';
     };
 
-    if (!courseId || !gradeItemId) {
-      return NextResponse.json({ error: '缺少 courseId 或 gradeItemId' }, { status: 400 });
+    if (!courseId) {
+      return NextResponse.json({ error: '缺少 courseId' }, { status: 400 });
     }
 
     const repo = process.env.GITHUB_REPO;
@@ -37,6 +57,53 @@ export async function POST(request: NextRequest) {
         },
         { status: 500 }
       );
+    }
+
+    // === 名單同步模式 ===
+    if (mode === 'roster') {
+      const course = await prisma.course.findUnique({ where: { id: courseId } });
+      if (!course) return NextResponse.json({ error: '課程不存在' }, { status: 404 });
+      if (!course.portalCosId || !course.portalYear || !course.portalSemester) {
+        return NextResponse.json(
+          {
+            error: '此課程尚未設定 portal 對應',
+            details: '請先在「校務同步」頁填寫此課程的 portal 課號、學年、學期',
+          },
+          { status: 400 }
+        );
+      }
+      const classes = course.hasClassDivision ? ['A', 'B'] : ['A'];
+      const job = await prisma.portalUploadJob.create({
+        data: { kind: 'roster', courseId, status: 'pending', dryRun },
+      });
+      const ghRes = await callRepositoryDispatch(repo, token, {
+        mode: 'roster',
+        jobId: job.id,
+        courseId,
+        portal: {
+          cosId: course.portalCosId,
+          year: course.portalYear,
+          semester: course.portalSemester,
+          classes,
+        },
+        dryRun,
+      });
+      if (!ghRes.ok) {
+        await prisma.portalUploadJob.update({
+          where: { id: job.id },
+          data: { status: 'failed', message: `GitHub 觸發失敗 (${ghRes.status}): ${ghRes.text}` },
+        });
+        return NextResponse.json(
+          { error: 'GitHub Actions 觸發失敗', details: `HTTP ${ghRes.status}: ${ghRes.text}` },
+          { status: 502 }
+        );
+      }
+      return NextResponse.json({ jobId: job.id, mode: 'roster', classes });
+    }
+
+    // === 成績上傳模式 ===
+    if (!gradeItemId) {
+      return NextResponse.json({ error: '缺少 gradeItemId' }, { status: 400 });
     }
 
     // 取成績項目與已登記成績
@@ -87,35 +154,23 @@ export async function POST(request: NextRequest) {
     });
 
     // 觸發 GitHub Actions（repository_dispatch）
-    const ghRes = await fetch(`https://api.github.com/repos/${repo}/dispatches`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        event_type: 'portal-upload',
-        client_payload: {
-          jobId: job.id,
-          gradeItemName: gradeItem.name,
-          scoreMap,
-          dryRun,
-          fillConfig: DEFAULT_FILL_CONFIG,
-        },
-      }),
+    const ghRes = await callRepositoryDispatch(repo, token, {
+      mode: 'grades',
+      jobId: job.id,
+      gradeItemName: gradeItem.name,
+      scoreMap,
+      dryRun,
+      fillConfig: DEFAULT_FILL_CONFIG,
     });
 
     if (!ghRes.ok) {
-      const text = await ghRes.text();
       // 觸發失敗 → 任務標記 failed，錯誤完整回前端
       await prisma.portalUploadJob.update({
         where: { id: job.id },
-        data: { status: 'failed', message: `GitHub 觸發失敗 (${ghRes.status}): ${text}` },
+        data: { status: 'failed', message: `GitHub 觸發失敗 (${ghRes.status}): ${ghRes.text}` },
       });
       return NextResponse.json(
-        { error: 'GitHub Actions 觸發失敗', details: `HTTP ${ghRes.status}: ${text}` },
+        { error: 'GitHub Actions 觸發失敗', details: `HTTP ${ghRes.status}: ${ghRes.text}` },
         { status: 502 }
       );
     }

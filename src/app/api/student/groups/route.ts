@@ -135,52 +135,15 @@ export async function POST(request: NextRequest) {
 }
 
 // 加入課程（建立 Student 記錄）
-async function handleJoinCourse(body: { courseId?: string }, loginStudentId: string) {
-  const { courseId } = body;
-  if (!courseId) {
-    return NextResponse.json({ error: '請指定課程' }, { status: 400 });
-  }
-
-  // 確認課程存在
-  const course = await prisma.course.findUnique({ where: { id: courseId } });
-  if (!course) {
-    return NextResponse.json({ error: '課程不存在' }, { status: 404 });
-  }
-
-  // 檢查是否已經在此課程中
-  const existing = await prisma.student.findFirst({
-    where: { studentId: loginStudentId, courseId },
-  });
-  if (existing) {
-    return NextResponse.json({ error: '你已經在此課程中' }, { status: 400 });
-  }
-
-  // 從 Account 讀取 name/class
-  const account = await prisma.account.findUnique({
-    where: { studentId: loginStudentId },
-  });
-  if (!account) {
-    return NextResponse.json({ error: '帳號不存在，請重新登入' }, { status: 400 });
-  }
-
-  // 建立 Student 記錄
-  try {
-    await prisma.student.create({
-      data: {
-        studentId: loginStudentId,
-        name: account.name,
-        class: account.class,
-        courseId,
-      },
-    });
-  } catch (e: unknown) {
-    if (e instanceof Error && 'code' in e && (e as { code: string }).code === 'P2002') {
-      return NextResponse.json({ error: '你已經在此課程中' }, { status: 400 });
-    }
-    throw e;
-  }
-
-  return NextResponse.json({ success: true, message: `已加入「${course.name}」` });
+// 已停用：學生不再自助加入課程。名單改由老師從校務系統(portalx)匯入。
+async function handleJoinCourse(_body: { courseId?: string }, _loginStudentId: string) {
+  return NextResponse.json(
+    {
+      error: '已停用自助加入課程',
+      details: '課程名單改由老師從校務系統匯入，請聯絡授課老師。',
+    },
+    { status: 403 }
+  );
 }
 
 // 業務錯誤，不需要重試
