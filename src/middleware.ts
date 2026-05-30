@@ -15,6 +15,7 @@ const PUBLIC_PATHS = [
   '/api/portal-sync/discover-result',
   '/api/portal-sync/session',      // Chrome 插件上傳 session（x-extension-token 驗證）
   '/api/portal-sync/session-get',  // worker 拉 session（x-worker-secret 驗證）
+  '/api/portal-sync/extension-data', // Chrome 插件上傳爬取結果（x-extension-token 驗證）
 ];
 
 // 老師專用頁面

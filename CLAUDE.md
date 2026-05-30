@@ -70,8 +70,8 @@ prisma db push        # 同步 schema 到資料庫（不可加 --accept-data-los
   - `students/preview`（只讀比對，回 toCreate/identical/conflicts/invalid）、`students/commit`（交易內寫入，只做老師勾選的新增/覆蓋）
   - `dispatch`（requireAdmin，組 scoreMap、建 `PortalUploadJob`、呼叫 GitHub `repository_dispatch` 觸發自動上傳）、`jobs`（requireAdmin，輪詢任務）、`job-status`（worker 回報，**走 middleware PUBLIC_PATHS**，用 `x-worker-secret` + `WORKER_CALLBACK_SECRET` 驗證）
   - 腳本產生器/selector/填值演算法集中於 `src/lib/portalSync.ts`
-- 自動上傳/發現 worker：`worker/`（獨立 deps，不進 Vercel build）+ `.github/workflows/portal-upload.yml`。portal 登入頁有**隱形 reCAPTCHA**，故 worker **不自動登入**，改注入 Chrome 插件上傳的 session（`applySession`）。portal 專屬 selector/導航在 `worker/portalConfig.mjs`
-- Chrome 插件 `extension/`（MV3）：老師登入 portalx 後抓 `chrome.cookies` → `/api/portal-sync/session`（`x-extension-token`=`EXTENSION_TOKEN`）→ 存 `PortalSession` → 觸發 discover worker → worker 拉 `/api/portal-sync/session-get`（`x-worker-secret`）注入 cookie。GitHub 觸發共用 `src/lib/portalDispatch.ts` 的 `triggerWorker`。風險：portalx 若綁 session IP，雲端機房 IP 重用會被踢回登入頁
+- **portalx 存取結論**：登入頁有隱形 reCAPTCHA（擋雲端自動登入）、且 session **綁登入 IP**（雲端機房 IP 重用會被踢回登入頁，已實測 `SESSION_INVALID_FROM_WORKER_IP`）。故**任何雲端 worker 直接存取 portalx 都不可行**；`worker/` + `.github/workflows/portal-upload.yml` + session 注入那套**已停用、保留備查**
+- **實際運作架構：Chrome 插件在老師瀏覽器內爬取**（同 IP、同 session，不碰 reCAPTCHA/IP 綁定）。`extension/`（MV3，需 `tabs`/`scripting`）用 `chrome.scripting(world:'MAIN')` 在 portalx 頁面呼叫其 `GoToPage()` 並讀 `#Cos_info`/`#Std_info` → 逐門課爬「課程+名單」→ POST `/api/portal-sync/extension-data`（`x-extension-token`=`EXTENSION_TOKEN`）存成 discover job(resultJson)。老師到 `/portal-courses?job=<id>` 勾選 → `POST /api/portal-sync/extension-import`（requireAdmin）建課＋寫名單（只新增不覆蓋、`account.upsert`、停修跳過）
 - Prisma Client 單例在 `src/lib/prisma.ts`，開發環境掛在 globalThis 避免 hot reload 重複建立連線
 
 ## next.config.js

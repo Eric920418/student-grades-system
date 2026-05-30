@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
   "name": "成績系統 — portalx 同步",
-  "version": "1.0.0",
-  "description": "登入 portalx 後，一鍵把已登入 session 交給成績系統，自動發現課程與撈名單。",
-  "permissions": ["cookies", "storage"],
+  "version": "2.0.0",
+  "description": "在你已登入的瀏覽器裡自動爬取 portalx 所有課程與名單，結果送回成績系統。",
+  "permissions": ["cookies", "storage", "tabs", "scripting"],
   "host_permissions": [
-    "https://portalx.yzu.edu.tw/*",
+    "https://*.yzu.edu.tw/*",
     "https://student-grades-system.vercel.app/*"
   ],
   "action": {

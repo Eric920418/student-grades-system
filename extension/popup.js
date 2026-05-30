@@ -8,20 +8,19 @@ document.getElementById('opt').addEventListener('click', (e) => {
 
 btn.addEventListener('click', () => {
   btn.disabled = true;
-  msg.textContent = '同步中…';
   msg.className = '';
-  chrome.runtime.sendMessage({ type: 'SYNC' }, (res) => {
+  msg.textContent = '撈取中…正逐門課讀取，約 1–3 分鐘，請勿關閉視窗。';
+  chrome.runtime.sendMessage({ type: 'CRAWL' }, (res) => {
     btn.disabled = false;
     if (res && res.ok) {
       msg.className = 'ok';
-      // 用 DOM 建立，避免 innerHTML 注入風險
-      msg.textContent = `✅ 已上傳 ${res.cookieCount} 個 cookie，已觸發發現課程。約 1–3 分鐘後到 `;
+      msg.textContent = `✅ 已撈取 ${res.count} 門課程，請到成績系統勾選要建立的課：`;
       const a = document.createElement('a');
-      a.href = `${res.appUrl}/portal-courses`;
+      a.href = `${res.appUrl}/portal-courses?job=${res.jobId}`;
       a.target = '_blank';
       a.textContent = '成績系統 → 匯入課程';
+      msg.appendChild(document.createElement('br'));
       msg.appendChild(a);
-      msg.appendChild(document.createTextNode(' 查看結果。'));
     } else {
       msg.className = 'err';
       msg.textContent = '❌ ' + (res ? res.error : '未知錯誤');
