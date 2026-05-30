@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 460px; margin: 30px auto; padding: 0 16px; }
+    label { display: block; font-size: 13px; font-weight: 600; margin: 14px 0 4px; }
+    input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; box-sizing: border-box; }
+    button { margin-top: 16px; padding: 9px 18px; font-size: 14px; font-weight: 600; color: #fff; background: #2563eb; border: 0; border-radius: 8px; cursor: pointer; }
+    #status { margin-top: 12px; font-size: 13px; color: #047857; }
+    p { font-size: 12px; color: #666; }
+  </style>
+</head>
+<body>
+  <h2>portalx 同步 — 設定</h2>
+  <label>成績系統 App 網址</label>
+  <input id="appUrl" placeholder="https://student-grades-system.vercel.app" />
+  <label>配對 token（EXTENSION_TOKEN，與系統設定相同）</label>
+  <input id="token" type="password" placeholder="貼上配對 token" />
+  <p>此 token 由成績系統管理者提供，需與 Vercel 的 EXTENSION_TOKEN 一致。</p>
+  <button id="save">儲存</button>
+  <div id="status"></div>
+  <script src="options.js"></script>
+</body>
+</html>

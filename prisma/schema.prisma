@@ -162,3 +162,13 @@ model PortalUploadJob {
   @@index([courseId])
   @@map("portal_upload_jobs")
 }
+
+// 老師用 Chrome 插件登入 portalx 後上傳的 session cookie（單筆、最新）。
+// worker 重用此 session 認證，免去自動登入（reCAPTCHA）。屬敏感憑證，短期使用。
+model PortalSession {
+  id         String   @id @default("current")
+  cookiesJson String  // chrome.cookies 抓到的 cookie 陣列（JSON）
+  updatedAt  DateTime @updatedAt
+
+  @@map("portal_sessions")
+}

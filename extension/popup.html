@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body { width: 280px; font-family: system-ui, sans-serif; padding: 14px; }
+    h1 { font-size: 15px; margin: 0 0 8px; }
+    p { font-size: 12px; color: #555; margin: 0 0 10px; line-height: 1.5; }
+    button { width: 100%; padding: 10px; font-size: 14px; font-weight: 600; color: #fff;
+      background: #2563eb; border: 0; border-radius: 8px; cursor: pointer; }
+    button:disabled { background: #9ca3af; cursor: not-allowed; }
+    #msg { margin-top: 10px; font-size: 12px; white-space: pre-line; }
+    .ok { color: #047857; } .err { color: #b91c1c; }
+    a { font-size: 12px; color: #2563eb; }
+  </style>
+</head>
+<body>
+  <h1>portalx → 成績系統同步</h1>
+  <p>請先在 Chrome 登入 portalx，再按下方按鈕，把登入狀態交給成績系統自動發現課程。</p>
+  <button id="sync">🔄 同步課程到成績系統</button>
+  <div id="msg"></div>
+  <p style="margin-top:10px"><a id="opt" href="#">設定（App 網址 / 配對 token）</a></p>
+  <script src="popup.js"></script>
+</body>
+</html>

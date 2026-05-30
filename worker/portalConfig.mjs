@@ -82,6 +82,31 @@ export async function gotoRoster(page, { year, semester, cosId, cosClass }) {
 const HOME_URL = process.env.PORTAL_HOME_URL || 'https://portalx.yzu.edu.tw/PortalSocialVB/';
 
 /**
+ * 把 Chrome 插件抓到的 cookie 注入 Playwright context（取代自動登入）。
+ * chrome.cookies 格式 → Playwright addCookies 格式。
+ */
+export async function applySession(context, cookies) {
+  const sameSiteMap = { no_restriction: 'None', lax: 'Lax', strict: 'Strict', unspecified: 'Lax' };
+  const mapped = (cookies || [])
+    .filter((c) => c && c.name && c.domain)
+    .map((c) => {
+      const out = {
+        name: c.name,
+        value: c.value || '',
+        domain: c.domain,
+        path: c.path || '/',
+        httpOnly: !!c.httpOnly,
+        secure: !!c.secure,
+        sameSite: sameSiteMap[(c.sameSite || 'lax').toLowerCase?.() || 'lax'] || 'Lax',
+      };
+      if (typeof c.expirationDate === 'number') out.expires = Math.floor(c.expirationDate);
+      return out;
+    });
+  if (mapped.length) await context.addCookies(mapped);
+  return mapped.length;
+}
+
+/**
  * 發現帳號的所有課程。流程：首頁左側選單取 (pageId, 課名) → 逐門 GoToPage 進課 →
  * 進 ClassMate(學生) 讀 #Cos_info(cosid/班別/學期) + 判斷 #divMenuMan(管理) 是否顯示=授課老師。
  * 導航行為待真實 portal 驗證，故每門包 try/catch、把 error 一併回傳，方便看 log 迭代。

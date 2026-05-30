@@ -70,7 +70,8 @@ prisma db push        # 同步 schema 到資料庫（不可加 --accept-data-los
   - `students/preview`（只讀比對，回 toCreate/identical/conflicts/invalid）、`students/commit`（交易內寫入，只做老師勾選的新增/覆蓋）
   - `dispatch`（requireAdmin，組 scoreMap、建 `PortalUploadJob`、呼叫 GitHub `repository_dispatch` 觸發自動上傳）、`jobs`（requireAdmin，輪詢任務）、`job-status`（worker 回報，**走 middleware PUBLIC_PATHS**，用 `x-worker-secret` + `WORKER_CALLBACK_SECRET` 驗證）
   - 腳本產生器/selector/填值演算法集中於 `src/lib/portalSync.ts`
-- 自動上傳 worker：`worker/`（獨立 deps，不進 Vercel build）+ `.github/workflows/portal-upload.yml`，Playwright 登入 portalx 填分。portal 專屬 selector 在 `worker/portalConfig.mjs`（待真實頁面調整）。需 Vercel env `GITHUB_DISPATCH_TOKEN`/`GITHUB_REPO`/`WORKER_CALLBACK_SECRET` 與對應 GitHub Secrets
+- 自動上傳/發現 worker：`worker/`（獨立 deps，不進 Vercel build）+ `.github/workflows/portal-upload.yml`。portal 登入頁有**隱形 reCAPTCHA**，故 worker **不自動登入**，改注入 Chrome 插件上傳的 session（`applySession`）。portal 專屬 selector/導航在 `worker/portalConfig.mjs`
+- Chrome 插件 `extension/`（MV3）：老師登入 portalx 後抓 `chrome.cookies` → `/api/portal-sync/session`（`x-extension-token`=`EXTENSION_TOKEN`）→ 存 `PortalSession` → 觸發 discover worker → worker 拉 `/api/portal-sync/session-get`（`x-worker-secret`）注入 cookie。GitHub 觸發共用 `src/lib/portalDispatch.ts` 的 `triggerWorker`。風險：portalx 若綁 session IP，雲端機房 IP 重用會被踢回登入頁
 - Prisma Client 單例在 `src/lib/prisma.ts`，開發環境掛在 globalThis 避免 hot reload 重複建立連線
 
 ## next.config.js

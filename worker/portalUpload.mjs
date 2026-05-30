@@ -7,17 +7,27 @@
 import { chromium } from 'playwright';
 import { put } from '@vercel/blob';
 import {
-  login,
   gotoGradePage,
   submit,
   gotoRoster,
   scrapeRoster,
   discoverCourses,
+  applySession,
 } from './portalConfig.mjs';
 
+// 向 app 拉取老師用插件上傳的 portalx session cookie
+async function fetchSession() {
+  const url = APP_CALLBACK_URL.replace(/\/job-status\/?$/, '/session-get');
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-worker-secret': WORKER_CALLBACK_SECRET },
+  });
+  if (!res.ok) throw new Error(`取得 session 失敗 ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  return data.cookies || [];
+}
+
 const {
-  PORTAL_USERNAME,
-  PORTAL_PASSWORD,
   WORKER_CALLBACK_SECRET,
   APP_CALLBACK_URL,
   BLOB_READ_WRITE_TOKEN,
@@ -81,19 +91,27 @@ async function main() {
   // client_payload 由觸發者提供，jobId 僅允許安全字元（用於 Blob key），防止異常 key
   const safeJobId = String(jobId || '').replace(/[^a-zA-Z0-9_-]/g, '');
 
-  if (!PORTAL_USERNAME || !PORTAL_PASSWORD) {
-    await reportStatus(jobId, 'failed', {
-      message: '缺少 PORTAL_USERNAME / PORTAL_PASSWORD（請設定 GitHub Secret）',
-    });
-    process.exit(1);
-  }
-
-  await reportStatus(jobId, 'running', { message: '已啟動 worker，登入 portalx…' });
+  await reportStatus(jobId, 'running', { message: '已啟動 worker，注入 session…' });
 
   const browser = await chromium.launch();
   const page = await browser.newPage();
   try {
-    await login(page, { username: PORTAL_USERNAME, password: PORTAL_PASSWORD });
+    // 用插件上傳的 session 認證（取代自動登入，不碰 reCAPTCHA）
+    const cookies = await fetchSession();
+    const injected = await applySession(page.context(), cookies);
+    console.log(`已注入 ${injected} 個 session cookie`);
+
+    // IP 綁定驗收：注入後進首頁，若被踢回 Login.aspx 代表 session 不能跨 IP 用
+    await page.goto('https://portalx.yzu.edu.tw/PortalSocialVB/', { waitUntil: 'domcontentloaded' }).catch(() => {});
+    await page.waitForTimeout(1000);
+    const landedUrl = page.url();
+    const stillLogin = /Login\.aspx/i.test(landedUrl) || !!(await page.$('#Txt_Password').catch(() => null));
+    console.log('注入 session 後首頁 url:', landedUrl, 'stillLogin:', stillLogin);
+    if (stillLogin) {
+      throw new Error(
+        'SESSION_INVALID_FROM_WORKER_IP：注入 session 後仍被導向登入頁，portalx 可能將 session 綁定登入 IP，雲端(機房 IP)無法重用。'
+      );
+    }
 
     // ===== 課程發現模式（唯讀）=====
     if (payload.mode === 'discover') {

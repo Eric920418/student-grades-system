@@ -152,6 +152,18 @@
 
 > ⚠️ 自動操作 portalx 應確認符合學校系統使用規範；寫入正式成績前務必先乾跑 + 用少數學生確認。若 portal 日後改加驗證碼導致自動登入失效，可改用下方手動備援。
 
+#### 🧩 Chrome 插件 + session 接手（自動發現課程＋撈名單，不碰 reCAPTCHA）
+
+portalx 登入頁掛了隱形 reCAPTCHA，雲端機器人**無法自動登入**（也不應破解）。因此改採「真人登入 → session 接手」：
+
+- 老師在自己的 Chrome **登入 portalx**（真人通過 reCAPTCHA）。
+- 點 **Chrome 插件**（`extension/`）→ 用 `chrome.cookies` 抓取登入後的 session（含 HttpOnly）→ POST 到 `/api/portal-sync/session`（`x-extension-token` 驗證）。
+- App 存 `PortalSession`（短期）→ 觸發 GitHub Actions worker → worker 向 `/api/portal-sync/session-get` 拉 session、`context.addCookies` 注入 → **不登入**直接跑「發現所有課程」→ 老師在 `/portal-courses` 勾選 → 建課＋撈名單。
+- **安全**：真人登入、插件只接手老師自己的 session（非破解驗證）；session 屬敏感憑證，短期 TTL（30 分）、worker 不印 cookie。
+- **已知限制**：若 portalx 將 session 綁定登入 IP，雲端(機房 IP)重用會被導回登入頁；worker 會以 `SESSION_INVALID_FROM_WORKER_IP` 回報。
+- **插件安裝**：`chrome://extensions` → 開發人員模式 → 載入未封裝 → 選 `extension/`；於選項頁填 App 網址與 `EXTENSION_TOKEN`（與 Vercel 同值）。
+- 環境變數：Vercel 需 `EXTENSION_TOKEN`；不再需要 `PORTAL_USERNAME/PASSWORD`（不自動登入）。
+
 #### 🧑‍🎓 從 portal 自動同步學生名單（GitHub Actions worker）
 
 在 `/portal-sync` 為課程填妥 portal 對應（課號 cosid / 學年 y / 學期 s）→ 按「同步名單」→ worker 登入 portalx、抓 `ClassMate.aspx` 名單頁（A/B 班直接以網址 `cosclass` 參數各別抓取）→ 回寫系統。
