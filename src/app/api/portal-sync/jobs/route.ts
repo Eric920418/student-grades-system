@@ -11,10 +11,24 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const jobId = searchParams.get('jobId');
     const courseId = searchParams.get('courseId');
+    const latestKind = searchParams.get('latestKind');
 
     // 依 jobId 取單一任務（discover 任務無 courseId，走這條）
     if (jobId) {
       const job = await prisma.portalUploadJob.findUnique({ where: { id: jobId } });
+      return NextResponse.json(job ? [job] : []);
+    }
+
+    // 取某類型最新一筆（如 /portal-courses 直接開時載入最近的 discover 結果）
+    // 已由上方 requireAdmin 限定老師才可存取；kind 以白名單驗證。
+    if (latestKind) {
+      if (!['grades', 'roster', 'discover'].includes(latestKind)) {
+        return NextResponse.json({ error: '不合法的 kind' }, { status: 400 });
+      }
+      const job = await prisma.portalUploadJob.findFirst({
+        where: { kind: latestKind },
+        orderBy: { createdAt: 'desc' },
+      });
       return NextResponse.json(job ? [job] : []);
     }
 

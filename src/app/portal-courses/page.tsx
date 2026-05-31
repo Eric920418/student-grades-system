@@ -32,6 +32,7 @@ export default function PortalCoursesPage() {
   const jobId = searchParams.get('job');
 
   const [courses, setCourses] = useState<DiscoveredCourse[] | null>(null);
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -40,15 +41,19 @@ export default function PortalCoursesPage() {
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
 
   const load = useCallback(async () => {
-    if (!jobId) return;
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch(`/api/portal-sync/jobs?jobId=${jobId}`);
+      // 有帶 ?job= 用該筆；否則自動載入最近一次插件撈取結果
+      const url = jobId
+        ? `/api/portal-sync/jobs?jobId=${jobId}`
+        : `/api/portal-sync/jobs?latestKind=discover`;
+      const res = await fetch(url);
       const arr = await res.json();
       const job = Array.isArray(arr) ? arr[0] : null;
-      if (!job) throw new Error('找不到這筆同步資料');
+      if (!job) { setCourses(null); return; } // 還沒有任何撈取資料
       if (!job.resultJson) throw new Error('這筆同步沒有課程資料');
+      setActiveJobId(job.id);
       const list: DiscoveredCourse[] = JSON.parse(job.resultJson);
       setCourses(list);
       const presel = new Set<number>();
@@ -71,7 +76,7 @@ export default function PortalCoursesPage() {
   });
 
   const handleImport = async () => {
-    if (!courses || !jobId) return;
+    if (!courses || !activeJobId) return;
     setError(null);
     const picks = Array.from(selected).map((index) => ({ index, hasClassDivision: divisions.has(index) }));
     if (picks.length === 0) { setError('請至少勾選一門課'); return; }
@@ -80,7 +85,7 @@ export default function PortalCoursesPage() {
       const res = await fetch('/api/portal-sync/extension-import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId, picks }),
+        body: JSON.stringify({ jobId: activeJobId, picks }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.details ? `${data.error}：${data.details}` : data.error);
@@ -106,9 +111,9 @@ export default function PortalCoursesPage() {
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg whitespace-pre-line">{error}</div>
       )}
 
-      {!jobId && (
+      {!loading && !courses && !error && (
         <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg text-sm">
-          尚未有同步資料。請先在 Chrome 點插件 →「🔄 同步課程到成績系統」，完成後會自動開啟帶資料的本頁。
+          尚未有同步資料。請先在 Chrome 點插件 →「🔄 同步課程到成績系統」，完成後這頁會自動顯示最近一次的撈取結果。
         </div>
       )}
 
