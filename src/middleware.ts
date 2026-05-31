@@ -16,6 +16,8 @@ const PUBLIC_PATHS = [
   '/api/portal-sync/session',      // Chrome 插件上傳 session（x-extension-token 驗證）
   '/api/portal-sync/session-get',  // worker 拉 session（x-worker-secret 驗證）
   '/api/portal-sync/extension-data', // Chrome 插件上傳爬取結果（x-extension-token 驗證）
+  '/api/portal-sync/course-grade-items', // 插件填成績：列課程+成績項目（x-extension-token）
+  '/api/portal-sync/scores',         // 插件填成績：取分數（x-extension-token）
 ];
 
 // 老師專用頁面

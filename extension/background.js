@@ -170,9 +170,80 @@ async function runCrawl() {
   }
 }
 
+// ── 填成績：注入成績登錄頁(MAIN world)，依學號比對填入分數（不送出）──
+function pageFill(arg) {
+  const { scoreMap, cfg } = arg;
+  const re = new RegExp(cfg.studentIdRegex);
+  const rows = [...document.querySelectorAll(cfg.rowSelector)];
+  const filled = [], skipped = [], used = {};
+  for (const row of rows) {
+    const input = row.querySelector(cfg.scoreInput);
+    if (!input) continue;
+    const hay = [input.name, input.id, row.innerText].filter(Boolean).join(' ');
+    const m = hay.match(re);
+    if (!m) continue;
+    const sid = m[0];
+    if (Object.prototype.hasOwnProperty.call(scoreMap, sid)) {
+      input.value = String(scoreMap[sid]);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      filled.push(sid); used[sid] = 1;
+    } else {
+      skipped.push(sid);
+    }
+  }
+  const missing = Object.keys(scoreMap).filter((s) => !used[s]);
+  return { filled, skipped, missing };
+}
+
+async function getCourses() {
+  const { appUrl, token } = await getConfig();
+  if (!token) return { ok: false, error: '尚未設定配對 token' };
+  const res = await fetch(`${appUrl}/api/portal-sync/course-grade-items`, { headers: { 'x-extension-token': token } });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) return { ok: false, error: data.error || `HTTP ${res.status}` };
+  return { ok: true, courses: data.courses || [] };
+}
+
+async function fillGrades(courseId, gradeItemId) {
+  const { appUrl, token } = await getConfig();
+  if (!token) return { ok: false, error: '尚未設定配對 token' };
+  const tabs = await chrome.tabs.query({ url: 'https://portalx.yzu.edu.tw/*' });
+  const tab = tabs.find((t) => t.active) || tabs[0];
+  if (!tab) return { ok: false, error: '找不到 portalx 分頁，請先開著成績登錄頁。' };
+
+  const res = await fetch(`${appUrl}/api/portal-sync/scores`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-extension-token': token },
+    body: JSON.stringify({ courseId, gradeItemId }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) return { ok: false, error: data.error || `HTTP ${res.status}` };
+
+  const cfg = {
+    rowSelector: 'table tr',
+    scoreInput: "input[type='text'], input:not([type])",
+    studentIdRegex: '[A-Za-z]?\\d{6,}',
+  };
+  const [r] = await chrome.scripting.executeScript({
+    target: { tabId: tab.id }, world: 'MAIN', func: pageFill, args: [{ scoreMap: data.scoreMap, cfg }],
+  });
+  const stats = r ? r.result : null;
+  return { ok: true, gradeItemName: data.gradeItemName, count: data.count, stats };
+}
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg && msg.type === 'START') {
     runCrawl(); // 不等它完成；popup 改輪詢 chrome.storage
     sendResponse({ started: true }); // 同步回應，通道立刻關閉，不會 port closed
+    return;
+  }
+  if (msg && msg.type === 'GET_COURSES') {
+    getCourses().then(sendResponse).catch((e) => sendResponse({ ok: false, error: String((e && e.message) || e) }));
+    return true;
+  }
+  if (msg && msg.type === 'FILL') {
+    fillGrades(msg.courseId, msg.gradeItemId).then(sendResponse).catch((e) => sendResponse({ ok: false, error: String((e && e.message) || e) }));
+    return true;
   }
 });
