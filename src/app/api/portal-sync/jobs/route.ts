@@ -51,3 +51,26 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+// 清除某類型的任務紀錄（如清掉爬取預覽 discover）。
+// 只刪 PortalUploadJob 這張任務表，與 Course/Student 無任何關聯，不影響真實課程與學生。
+export async function DELETE(request: NextRequest) {
+  const adminError = requireAdmin(request);
+  if (adminError) return adminError;
+
+  try {
+    const { searchParams } = new URL(request.url);
+    const kind = searchParams.get('kind');
+    if (!kind || !['grades', 'roster', 'discover'].includes(kind)) {
+      return NextResponse.json({ error: '缺少或不合法的 kind' }, { status: 400 });
+    }
+    const del = await prisma.portalUploadJob.deleteMany({ where: { kind } });
+    return NextResponse.json({ deleted: del.count });
+  } catch (error) {
+    console.error('清除任務紀錄錯誤:', error);
+    return NextResponse.json(
+      { error: '清除任務紀錄失敗', details: error instanceof Error ? error.message : '未知錯誤' },
+      { status: 500 }
+    );
+  }
+}

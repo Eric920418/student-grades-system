@@ -39,6 +39,7 @@ export default function PortalCoursesPage() {
   const [divisions, setDivisions] = useState<Set<number>>(new Set());
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [clearing, setClearing] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
@@ -97,6 +98,24 @@ export default function PortalCoursesPage() {
     }
   };
 
+  const handleClearDiscover = async () => {
+    if (!confirm('清除這份爬取預覽清單？\n（只清掉預覽，不會刪除任何已建立的課程或學生）')) return;
+    setError(null);
+    try {
+      setClearing(true);
+      const res = await fetch('/api/portal-sync/jobs?kind=discover', { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.details ? `${data.error}：${data.details}` : data.error);
+      setCourses(null);
+      setImportResult(null);
+      setSelected(new Set());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '清除失敗');
+    } finally {
+      setClearing(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -121,7 +140,17 @@ export default function PortalCoursesPage() {
 
       {courses && (
         <div className="bg-white rounded-lg shadow-sm p-4 md:p-6 space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900">爬到 {courses.length} 門課程（勾選要建立的）</h3>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-lg font-semibold text-gray-900">爬到 {courses.length} 門課程（勾選要建立的）</h3>
+            <button
+              onClick={handleClearDiscover}
+              disabled={clearing}
+              className="text-sm text-gray-500 hover:text-red-600 border border-gray-300 rounded-lg px-3 py-1.5 disabled:opacity-50 transition-colors"
+              title="只清掉這份爬取預覽，不會刪除任何已建立的課程或學生"
+            >
+              {clearing ? '清除中…' : '🗑 清除爬取預覽'}
+            </button>
+          </div>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50">
