@@ -206,12 +206,20 @@ export default function HomePage() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg md:text-xl font-semibold">選擇課程</h2>
           {isAdmin && (
-            <button
-              onClick={openCreateModal}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-            >
-              + 新增課程
-            </button>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/portal-courses"
+                className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium"
+              >
+                🔄 從 portal 匯入課程
+              </Link>
+              <button
+                onClick={openCreateModal}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+              >
+                + 新增課程
+              </button>
+            </div>
           )}
         </div>
         {courses.length === 0 ? (
