@@ -171,6 +171,10 @@ async function runCrawl() {
 }
 
 // ── 填成績：注入成績登錄頁(MAIN world)，依學號比對填入分數（不送出）──
+// 填值演算法：與 src/lib/portalSync.ts 的 FILL_FUNCTION_SOURCE 同一套邏輯
+// （同 selector、同學號比對、同 dispatch input/change、找不到跳過）。
+// ⚠️ 改填法請兩邊一起改，保持與「成績項目頁的 Console 貼分腳本」行為一致。
+// 填完 alert 防呆統計（沿用舊腳本訊息），讓老師看到與貼腳本時相同的確認。
 function pageFill(arg) {
   const { scoreMap, cfg } = arg;
   const re = new RegExp(cfg.studentIdRegex);
@@ -193,6 +197,13 @@ function pageFill(arg) {
     }
   }
   const missing = Object.keys(scoreMap).filter((s) => !used[s]);
+  let msg = '✅ 已填入 ' + filled.length + ' 筆成績。';
+  if (missing.length) {
+    msg += '\n\n⚠️ 有 ' + missing.length + ' 個學號在頁面上找不到對應欄位，未填入：\n' + missing.join(', ') +
+      '\n\n（請確認是否分頁、排序不同，或學號格式需調整）';
+  }
+  msg += '\n\n尚未送出，請在 portalx 頁面核對後自行按「儲存/送出」。';
+  alert(msg);
   return { filled, skipped, missing };
 }
 
@@ -220,6 +231,7 @@ async function fillGrades(courseId, gradeItemId) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) return { ok: false, error: data.error || `HTTP ${res.status}` };
 
+  // 與 src/lib/portalSync.ts 的 DEFAULT_FILL_CONFIG 同值（保持與舊腳本一致；改一邊要改兩邊）
   const cfg = {
     rowSelector: 'table tr',
     scoreInput: "input[type='text'], input:not([type])",
