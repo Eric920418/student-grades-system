@@ -55,26 +55,35 @@ export async function POST(request: NextRequest) {
         continue;
       }
       const cosId = c.cosId.trim();
-      const name = c.name.trim();
+      const baseName = c.name.trim();
+      const year = (c.year || '').trim();
+      const sem = (c.semester || '').trim();
       const cosClass = (c.cosClass || 'A').trim() || 'A';
+      // 每學期各自獨立：以「課號+學年+學期」當課程身分；課名加學期後綴以利區分與避免同名衝突
+      const displayName = year && sem ? `${baseName}（${year}-${sem}）` : baseName;
 
-      // 建立/補對應 Course（既有只補 portal 對應，不覆蓋其他欄位）
-      let course = await prisma.course.findFirst({ where: { OR: [{ code: cosId }, { name }] } });
+      // 找同一學期的同一門課（有學期就用課號+學年+學期；否則退回課號/課名）
+      let course = await prisma.course.findFirst({
+        where:
+          year && sem
+            ? { portalCosId: cosId, portalYear: year, portalSemester: sem }
+            : { OR: [{ code: cosId }, { name: displayName }] },
+      });
       if (course) {
         course = await prisma.course.update({
           where: { id: course.id },
-          data: { portalCosId: cosId, portalYear: c.year || null, portalSemester: c.semester || null },
+          data: { portalCosId: cosId, portalYear: year || null, portalSemester: sem || null },
         });
         result.coursesUpdated++;
       } else {
         course = await prisma.course.create({
           data: {
-            name,
+            name: displayName,
             code: cosId,
             hasClassDivision: pick.hasClassDivision === true,
             portalCosId: cosId,
-            portalYear: c.year || null,
-            portalSemester: c.semester || null,
+            portalYear: year || null,
+            portalSemester: sem || null,
           },
         });
         result.coursesCreated++;
@@ -113,7 +122,7 @@ export async function POST(request: NextRequest) {
           created++;
         }
       });
-      result.courses.push({ name, created, skipped, conflicts });
+      result.courses.push({ name: displayName, created, skipped, conflicts });
     }
 
     return NextResponse.json(result);

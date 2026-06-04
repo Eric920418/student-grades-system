@@ -57,8 +57,9 @@ export default function PortalCoursesPage() {
       setActiveJobId(job.id);
       const list: DiscoveredCourse[] = JSON.parse(job.resultJson);
       setCourses(list);
+      // 預設勾選所有「成功撈到」的課（有 cosId）；老師/學生只是參考，可自行增減
       const presel = new Set<number>();
-      list.forEach((c, i) => { if (c.isInstructor && c.cosId) presel.add(i); });
+      list.forEach((c, i) => { if (c.cosId) presel.add(i); });
       setSelected(presel);
     } catch (err) {
       setError(err instanceof Error ? err.message : '讀取失敗');
@@ -142,15 +143,27 @@ export default function PortalCoursesPage() {
         <div className="bg-white rounded-lg shadow-sm p-4 md:p-6 space-y-4">
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-lg font-semibold text-gray-900">爬到 {courses.length} 門課程（勾選要建立的）</h3>
-            <button
-              onClick={handleClearDiscover}
-              disabled={clearing}
-              className="text-sm text-gray-500 hover:text-red-600 border border-gray-300 rounded-lg px-3 py-1.5 disabled:opacity-50 transition-colors"
-              title="只清掉這份爬取預覽，不會刪除任何已建立的課程或學生"
-            >
-              {clearing ? '清除中…' : '🗑 清除爬取預覽'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  const valid = courses.map((c, i) => ({ c, i })).filter((x) => x.c.cosId).map((x) => x.i);
+                  setSelected((prev) => (prev.size >= valid.length ? new Set() : new Set(valid)));
+                }}
+                className="text-sm text-gray-600 hover:text-blue-600 border border-gray-300 rounded-lg px-3 py-1.5 transition-colors"
+              >
+                全選 / 全不選
+              </button>
+              <button
+                onClick={handleClearDiscover}
+                disabled={clearing}
+                className="text-sm text-gray-500 hover:text-red-600 border border-gray-300 rounded-lg px-3 py-1.5 disabled:opacity-50 transition-colors"
+                title="只清掉這份爬取預覽，不會刪除任何已建立的課程或學生"
+              >
+                {clearing ? '清除中…' : '🗑 清除爬取預覽'}
+              </button>
+            </div>
           </div>
+          <p className="text-xs text-gray-500">「你的身分」僅供參考（偵測未必準），請自行確認勾選；讀取失敗的課請重撈一次。</p>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50">
@@ -177,7 +190,7 @@ export default function PortalCoursesPage() {
                       <td className="px-3 py-2 font-mono">{c.cosId || '—'}</td>
                       <td className="px-3 py-2">{c.year && c.semester ? `${c.year}/${c.semester}` : '—'}</td>
                       <td className="px-3 py-2">
-                        {c.error ? <span className="text-red-600 text-xs">讀取失敗</span>
+                        {c.error || !c.cosId ? <span className="text-red-600 text-xs">讀取失敗，請重撈</span>
                           : c.isInstructor ? <span className="px-2 py-0.5 rounded-full text-xs bg-purple-100 text-purple-700">老師</span>
                           : <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">學生</span>}
                       </td>

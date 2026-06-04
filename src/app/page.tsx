@@ -11,6 +11,8 @@ interface Course {
   description?: string;
   hasClassDivision?: boolean;
   allowStudentGrouping?: boolean;
+  portalYear?: string | null;
+  portalSemester?: string | null;
   _count?: {
     students: number;
     groups: number;
@@ -282,11 +284,18 @@ export default function HomePage() {
                 <div className="flex items-start justify-between mb-2 pr-16">
                   <h3 className="font-medium text-gray-900">{course.name}</h3>
                 </div>
-                {course.code && (
-                  <span className="inline-block text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded mb-2">
-                    {course.code}
-                  </span>
-                )}
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {course.code && (
+                    <span className="inline-block text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                      {course.code}
+                    </span>
+                  )}
+                  {course.portalYear && course.portalSemester && (
+                    <span className="inline-block text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded">
+                      {course.portalYear}-{course.portalSemester} 學期
+                    </span>
+                  )}
+                </div>
                 {course.description && (
                   <p className="text-sm text-gray-600 mb-3">{course.description}</p>
                 )}

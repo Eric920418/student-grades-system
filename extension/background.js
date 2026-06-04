@@ -47,6 +47,41 @@ async function exec(tabId, func, args) {
   return res ? res.result : null;
 }
 
+// 注入：頁面是否有某元素 / 是否為授課老師（管理選單可見）
+function pageHasSelector(sel) { return !!document.querySelector(sel); }
+function pageReadInstructor() {
+  const m = document.querySelector('#divMenuMan');
+  return !!m && getComputedStyle(m).display !== 'none';
+}
+
+// 輪詢等某元素出現（取代死等 sleep），最多 timeoutMs
+async function waitForSelectorInTab(tabId, selector, timeoutMs = 8000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try { if (await exec(tabId, pageHasSelector, [selector])) return true; } catch {}
+    await sleep(400);
+  }
+  return false;
+}
+
+// 撈一門課：回首頁→點課程→(課程首頁)讀老師身分→進名單頁→等表出現→讀
+async function crawlOneCourse(tabId, homeUrl, pageId, name) {
+  await nav(tabId, homeUrl);
+  await exec(tabId, pageClickCourse, [pageId]); // 觸發 GoToPage（會導航）
+  await waitComplete(tabId);
+  await sleep(600);
+  // 老師身分在「課程首頁」讀（名單頁沒有 #divMenuMan）
+  let isInstructor = false;
+  try { isInstructor = !!(await exec(tabId, pageReadInstructor)); } catch {}
+  // 進名單頁，等 #Std_info 真的出現才讀（避免讀到還沒載完的空表）
+  await nav(tabId, CLASSMATE);
+  await waitForSelectorInTab(tabId, '#Std_info table tr', 8000);
+  const info = await exec(tabId, pageReadClassMate);
+  let year = '', sem = '';
+  if (/^\d{4}$/.test(info.semester)) { year = info.semester.slice(0, 3); sem = info.semester.slice(3); }
+  return { name, cosId: info.cosId, cosClass: info.cosClass, year, semester: sem, isInstructor, students: info.students };
+}
+
 // ── 注入 portalx 頁面(MAIN world)執行的函式 ──
 function pageReadMenu() {
   return [...document.querySelectorAll('#MainLeftMenu_divMyPage td.tdLeftMenu')]
@@ -137,18 +172,21 @@ async function runCrawl() {
     for (let i = 0; i < menu.length; i++) {
       const { pageId, name } = menu[i];
       await setState({ status: 'running', progress: `讀取課程 ${i + 1}/${menu.length}：${name}` });
+      let rec;
       try {
-        await nav(tabId, homeUrl);
-        await exec(tabId, pageClickCourse, [pageId]);
-        await sleep(1500);
-        await nav(tabId, CLASSMATE);
-        const info = await exec(tabId, pageReadClassMate);
-        let year = '', sem = '';
-        if (/^\d{4}$/.test(info.semester)) { year = info.semester.slice(0, 3); sem = info.semester.slice(3); }
-        courses.push({ name, cosId: info.cosId, cosClass: info.cosClass, year, semester: sem, isInstructor: info.isInstructor, students: info.students });
+        rec = await crawlOneCourse(tabId, homeUrl, pageId, name);
+        if (!rec.cosId) {
+          await setState({ status: 'running', progress: `重撈課程 ${i + 1}/${menu.length}：${name}` });
+          rec = await crawlOneCourse(tabId, homeUrl, pageId, name); // 第一次讀到空，重撈一次
+        }
       } catch (e) {
-        courses.push({ name, error: String((e && e.message) || e) });
+        try {
+          rec = await crawlOneCourse(tabId, homeUrl, pageId, name); // 出錯也重試一次
+        } catch (e2) {
+          rec = { name, error: String((e2 && e2.message) || e2) };
+        }
       }
+      courses.push(rec);
     }
 
     await setState({ status: 'running', progress: '上傳結果到成績系統…' });
