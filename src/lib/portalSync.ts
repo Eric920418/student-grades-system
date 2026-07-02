@@ -40,7 +40,7 @@ export interface FillSelectorConfig {
 
 export const DEFAULT_FILL_CONFIG: FillSelectorConfig = {
   rowSelector: 'table tr',
-  scoreInput: "input[type='text'], input:not([type])",
+  scoreInput: "input[type='text'], input[type='number'], input[type='tel'], input:not([type])",
   studentIdRegex: STUDENT_ID_REGEX_SOURCE,
 };
 
@@ -70,41 +70,67 @@ export const DEFAULT_SCRAPE_CONFIG: ScrapeSelectorConfig = {
 
 /**
  * 核心填值演算法（純函式，在瀏覽器或 Playwright page.evaluate 環境執行）。
- * 逐列讀出學號（從 input 的 name/id 或整列文字），用學號比對 SCORE_MAP 填值；
- * 找不到對應學號的列一律跳過（不會誤填非本班學生）。回傳防呆統計。
+ * 逐列讀出學號（優先 row.innerText，其次 input 的 name/id），用學號比對 SCORE_MAP 填值；
+ * 找不到對應學號的列一律跳過（不會誤填非本班學生）。回傳防呆統計 + 頁面實際抓到的學號。
+ *
+ * 比對強化（修「整批找不到欄位」）：
+ *   1. 每列蒐集「所有」符合學號正則的候選，逐一比對 → 不會被 WebForms 控制項 id 內的數字搶走。
+ *   2. 兩側先正規化（全形→半形、去空白、大寫）再比 → 全形數字/空白差異不再誤判。
+ *   3. 同源 iframe/frame 一起掃（跨網域讀不到就略過），涵蓋成績表在框架內的情況。
  *
  * 以「字串」形式輸出，方便：①嵌進 Console 腳本 ②worker 用 page.evaluate 注入。
- * ⚠️ 若修改此演算法，worker/fillAlgorithm.mjs 需同步保持一致。
+ * ⚠️ 此演算法目前鏡像於三處，改一處要三處同步：
+ *    本檔 FILL_FUNCTION_SOURCE、extension/background.js 的 pageFill、
+ *    worker/portalUpload.mjs（已停用，保留備查）。
  */
 export const FILL_FUNCTION_SOURCE = `function __portalFill(SCORE_MAP, rawConfig) {
   const CONFIG = {
     rowSelector: rawConfig.rowSelector,
     scoreInput: rawConfig.scoreInput,
-    studentIdRegex: new RegExp(rawConfig.studentIdRegex),
+    studentIdRegex: new RegExp(rawConfig.studentIdRegex, "g"),
   };
-  const rows = [...document.querySelectorAll(CONFIG.rowSelector)];
+  // 全形→半形（讓 \\d 能匹配全形數字）；norm 另去空白+大寫，只用在「單一學號」token。
+  // ⚠️ 不可對整段 haystack 去空白，否則會把「序號 學號」黏成一串長數字而抓錯。
+  const widen = (s) => String(s).replace(/[０-９Ａ-Ｚａ-ｚ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+  const norm = (s) => widen(s).replace(/\\s+/g, "").toUpperCase();
+  const normMap = {};
+  for (const k of Object.keys(SCORE_MAP)) normMap[norm(k)] = k;
   const filled = [];
   const skippedNotInMap = [];
+  const pageIds = [];
   const usedIds = new Set();
-  for (const row of rows) {
-    const input = row.querySelector(CONFIG.scoreInput);
-    if (!input) continue;
-    const haystack = [input.name, input.id, row.innerText].filter(Boolean).join(" ");
-    const match = haystack.match(CONFIG.studentIdRegex);
-    if (!match) continue;
-    const sid = match[0];
-    if (Object.prototype.hasOwnProperty.call(SCORE_MAP, sid)) {
-      input.value = String(SCORE_MAP[sid]);
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-      filled.push(sid);
-      usedIds.add(sid);
-    } else {
-      skippedNotInMap.push(sid);
+  // 同源 iframe/frame 也一起掃（跨網域讀不到就略過）
+  const docs = [document];
+  for (const fr of document.querySelectorAll("iframe, frame")) {
+    try { if (fr.contentDocument) docs.push(fr.contentDocument); } catch (e) { /* 跨網域，略過 */ }
+  }
+  for (const doc of docs) {
+    for (const row of doc.querySelectorAll(CONFIG.rowSelector)) {
+      const input = row.querySelector(CONFIG.scoreInput);
+      if (!input) continue;
+      const haystack = widen([row.innerText, input.name, input.id].filter(Boolean).join(" ")).toUpperCase();
+      const cands = haystack.match(CONFIG.studentIdRegex);
+      if (!cands) continue;
+      let hit = null;
+      for (const c of cands) {
+        const key = norm(c);
+        pageIds.push(key);
+        if (!hit && Object.prototype.hasOwnProperty.call(normMap, key)) hit = key;
+      }
+      if (hit) {
+        const orig = normMap[hit];
+        input.value = String(SCORE_MAP[orig]);
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+        filled.push(orig);
+        usedIds.add(orig);
+      } else {
+        for (const c of cands) skippedNotInMap.push(norm(c));
+      }
     }
   }
   const missingInDom = Object.keys(SCORE_MAP).filter((id) => !usedIds.has(id));
-  return { filled: filled, skippedNotInMap: skippedNotInMap, missingInDom: missingInDom };
+  return { filled: filled, skippedNotInMap: skippedNotInMap, missingInDom: missingInDom, pageIds: pageIds };
 }`;
 
 /**
@@ -135,9 +161,15 @@ ${FILL_FUNCTION_SOURCE}
   console.log("已填入：" + r.filled.length + " 筆", r.filled);
   console.log("DOM 有此列但 map 無對應(略過)：" + r.skippedNotInMap.length + " 筆", r.skippedNotInMap);
   console.log("map 有但 DOM 找不到(未填)：" + r.missingInDom.length + " 筆", r.missingInDom);
+  console.log("頁面實際抓到的學號：", r.pageIds);
   let msg = "✅ 已填入 " + r.filled.length + " 筆成績。";
   if (r.missingInDom.length) {
-    msg += "\\n\\n⚠️ 有 " + r.missingInDom.length + " 個學號在頁面上找不到對應欄位，未填入：\\n" + r.missingInDom.join(", ") + "\\n\\n（請確認是否分頁、排序不同，或學號格式需調整 CONFIG.studentIdRegex）";
+    msg += "\\n\\n⚠️ 有 " + r.missingInDom.length + " 個學號在頁面上找不到對應欄位，未填入：\\n" + r.missingInDom.join(", ");
+    if (r.pageIds.length) {
+      msg += "\\n\\n頁面實際抓到的學號範例：" + r.pageIds.slice(0, 15).join(", ") + "\\n（若與系統學號格式明顯不同，即為格式不符）";
+    } else {
+      msg += "\\n\\n頁面上完全沒抓到成績輸入欄位，請確認停在成績登錄頁且表格已載入。";
+    }
   }
   alert(msg);
 })();`;

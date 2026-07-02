@@ -87,11 +87,21 @@ fillBtn.addEventListener('click', () => {
       fillMsg.textContent = '❌ ' + (res ? res.error : '填入失敗');
       return;
     }
-    const s = res.stats || { filled: [], missing: [] };
-    fillMsg.className = 'msg ok';
+    const s = res.stats || { filled: [], missing: [], pageIdsSample: [], rowsScanned: 0, rowsWithInput: 0, framesScanned: 0 };
+    // 有填到就綠、完全沒填到就紅，讓失敗一眼可見
+    fillMsg.className = s.filled.length ? 'msg ok' : 'msg err';
     let t = `✅ 已填入 ${s.filled.length} 筆（共 ${res.count} 筆成績）。`;
     if (s.missing && s.missing.length) {
       t += `\n⚠️ ${s.missing.length} 個學號在頁面找不到欄位：${s.missing.slice(0, 10).join(', ')}${s.missing.length > 10 ? '…' : ''}`;
+      // 完整診斷（所有資訊顯示在前端）：看得出是「掃不到欄位」還是「格式對不上」
+      t += `\n\n診斷：掃描 ${s.rowsScanned || 0} 列、其中 ${s.rowsWithInput || 0} 列有輸入框、${s.framesScanned || 0} 個 frame。`;
+      if (s.pageIdsSample && s.pageIdsSample.length) {
+        t += `\n頁面實際抓到的學號：${s.pageIdsSample.join(', ')}`;
+        t += `\n系統要填的學號（前幾個）：${s.missing.slice(0, 5).join(', ')}`;
+        t += `\n→ 兩者若明顯不同即為學號格式不符（全形/空白已自動處理）。`;
+      } else {
+        t += `\n頁面上完全沒抓到成績輸入欄位 → 請確認停在「成績登錄頁」、表格已載入（或成績表在 iframe 內）。`;
+      }
     }
     t += '\n請在 portalx 頁面核對後自行按「送出/儲存」。';
     fillMsg.textContent = t;

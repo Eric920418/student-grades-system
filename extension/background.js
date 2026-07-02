@@ -26,6 +26,15 @@ async function getConfig() {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// 學號正規化（只用於比對，不改寫入 DB 的值）：全形數字/字母→半形、去所有空白、字母轉大寫。
+// ⚠️ 與 pageFill 內部同名邏輯、src/lib/portalSync.ts 的 norm() 必須保持一致。
+function normId(s) {
+  return String(s)
+    .replace(/[０-９Ａ-Ｚａ-ｚ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+    .replace(/\s+/g, '')
+    .toUpperCase();
+}
+
 function waitComplete(tabId, timeout = 20000) {
   return new Promise((resolve) => {
     let done = false;
@@ -210,39 +219,71 @@ async function runCrawl() {
 
 // ── 填成績：注入成績登錄頁(MAIN world)，依學號比對填入分數（不送出）──
 // 填值演算法：與 src/lib/portalSync.ts 的 FILL_FUNCTION_SOURCE 同一套邏輯
-// （同 selector、同學號比對、同 dispatch input/change、找不到跳過）。
-// ⚠️ 改填法請兩邊一起改，保持與「成績項目頁的 Console 貼分腳本」行為一致。
-// 填完 alert 防呆統計（沿用舊腳本訊息），讓老師看到與貼腳本時相同的確認。
+// （同 selector、同學號正規化比對、同 dispatch input/change、找不到跳過）。
+// ⚠️ 改填法請三處一起改：本檔 pageFill、portalSync.ts FILL_FUNCTION_SOURCE、
+//    worker/portalUpload.mjs（已停用，保留備查）。
+// pageFill 以 allFrames 注入 → 每個 frame 各跑一次、只回統計，alert 由 fillGrades 匯總後單次跳。
+//
+// 比對強化（修「整批找不到欄位」）：
+//   1. 每列蒐集「所有」符合學號正則的候選，逐一比對 → 不會被 WebForms 控制項 id 內的數字搶走。
+//   2. 兩側先正規化（全形→半形、去空白、大寫）再比 → 全形數字/空白差異不再誤判。
+//   3. haystack 以 row.innerText 優先（可見學號），再看 input.name/id。
 function pageFill(arg) {
-  const { scoreMap, cfg } = arg;
-  const re = new RegExp(cfg.studentIdRegex);
+  const { scoreMap, normMap, cfg } = arg;
+  const reG = new RegExp(cfg.studentIdRegex, 'g');
+  // 全形→半形（讓 \d 能匹配全形數字）；norm 另去空白+大寫，只用在「單一學號」token（與 normId 一致）。
+  // ⚠️ 不可對整段 haystack 去空白，否則會把「序號 學號」黏成一串長數字而抓錯。
+  const widen = (s) => String(s).replace(/[０-９Ａ-Ｚａ-ｚ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+  const norm = (s) => widen(s).replace(/\s+/g, '').toUpperCase();
   const rows = [...document.querySelectorAll(cfg.rowSelector)];
-  const filled = [], skipped = [], used = {};
+  const filled = [], pageIds = [];
+  let rowsWithInput = 0;
   for (const row of rows) {
     const input = row.querySelector(cfg.scoreInput);
     if (!input) continue;
-    const hay = [input.name, input.id, row.innerText].filter(Boolean).join(' ');
-    const m = hay.match(re);
-    if (!m) continue;
-    const sid = m[0];
-    if (Object.prototype.hasOwnProperty.call(scoreMap, sid)) {
-      input.value = String(scoreMap[sid]);
+    rowsWithInput++;
+    const hay = widen([row.innerText, input.name, input.id].filter(Boolean).join(' ')).toUpperCase();
+    const cands = hay.match(reG);
+    if (!cands) continue;
+    let hit = null;
+    for (const c of cands) {
+      const key = norm(c);
+      pageIds.push(key);
+      if (!hit && Object.prototype.hasOwnProperty.call(normMap, key)) hit = key;
+    }
+    if (hit) {
+      const orig = normMap[hit];
+      input.value = String(scoreMap[orig]);
       input.dispatchEvent(new Event('input', { bubbles: true }));
       input.dispatchEvent(new Event('change', { bubbles: true }));
-      filled.push(sid); used[sid] = 1;
-    } else {
-      skipped.push(sid);
+      filled.push(orig);
     }
   }
-  const missing = Object.keys(scoreMap).filter((s) => !used[s]);
-  let msg = '✅ 已填入 ' + filled.length + ' 筆成績。';
-  if (missing.length) {
-    msg += '\n\n⚠️ 有 ' + missing.length + ' 個學號在頁面上找不到對應欄位，未填入：\n' + missing.join(', ') +
-      '\n\n（請確認是否分頁、排序不同，或學號格式需調整）';
+  return { filled, pageIds, rowsScanned: rows.length, rowsWithInput };
+}
+
+// 注入：本 frame 是否已有「含分數輸入框的列」→ 用來等 grid render 完成。
+function pageProbe(cfg) {
+  for (const row of document.querySelectorAll(cfg.rowSelector)) {
+    if (row.querySelector(cfg.scoreInput)) return true;
+  }
+  return false;
+}
+
+// 注入：填完後在頂層 frame 跳「單次」防呆統計（沿用舊腳本訊息 + 診斷）。
+function pageAlert(stats) {
+  let msg = '✅ 已填入 ' + stats.filled.length + ' 筆成績。';
+  if (stats.missing.length) {
+    msg += '\n\n⚠️ 有 ' + stats.missing.length + ' 個學號在頁面上找不到對應欄位，未填入：\n' + stats.missing.join(', ');
+    msg += '\n\n（掃描 ' + stats.rowsScanned + ' 列、其中 ' + stats.rowsWithInput + ' 列有輸入框、' + stats.framesScanned + ' 個 frame）';
+    if (stats.pageIdsSample.length) {
+      msg += '\n頁面實際抓到的學號範例：' + stats.pageIdsSample.join(', ') + '\n（若與系統學號格式明顯不同，即為格式不符）';
+    } else {
+      msg += '\n頁面上完全沒抓到成績輸入欄位，請確認停在成績登錄頁且表格已載入。';
+    }
   }
   msg += '\n\n尚未送出，請在 portalx 頁面核對後自行按「儲存/送出」。';
   alert(msg);
-  return { filled, skipped, missing };
 }
 
 async function getCourses() {
@@ -257,9 +298,20 @@ async function getCourses() {
 async function fillGrades(courseId, gradeItemId) {
   const { appUrl, token } = await getConfig();
   if (!token) return { ok: false, error: '尚未設定配對 token' };
-  const tabs = await chrome.tabs.query({ url: 'https://portalx.yzu.edu.tw/*' });
-  const tab = tabs.find((t) => t.active) || tabs[0];
-  if (!tab) return { ok: false, error: '找不到 portalx 分頁，請先開著成績登錄頁。' };
+
+  // 選分頁：優先「目前視窗正在看的 portalx 分頁」，避免跨視窗選到別的 portalx 分頁；
+  // 都排除停在登入頁的分頁；取不到再退回全域搜尋。
+  const notLogin = (t) => !/Login\.aspx/i.test(t.url || '');
+  let tab = null;
+  try {
+    const cur = await chrome.tabs.query({ url: 'https://portalx.yzu.edu.tw/*', active: true, lastFocusedWindow: true });
+    tab = cur.find(notLogin) || null;
+  } catch { /* lastFocusedWindow 在某些情境不可用，走下面的退路 */ }
+  if (!tab) {
+    const tabs = (await chrome.tabs.query({ url: 'https://portalx.yzu.edu.tw/*' })).filter(notLogin);
+    tab = tabs.find((t) => t.active) || tabs[0] || null;
+  }
+  if (!tab) return { ok: false, error: '找不到已登入的 portalx 分頁，請先開著成績登錄頁（且不是登入頁）。' };
 
   const res = await fetch(`${appUrl}/api/portal-sync/scores`, {
     method: 'POST',
@@ -269,16 +321,58 @@ async function fillGrades(courseId, gradeItemId) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) return { ok: false, error: data.error || `HTTP ${res.status}` };
 
-  // 與 src/lib/portalSync.ts 的 DEFAULT_FILL_CONFIG 同值（保持與舊腳本一致；改一邊要改兩邊）
+  // 與 src/lib/portalSync.ts 的 DEFAULT_FILL_CONFIG 同值（保持與舊腳本一致；改一邊要改三邊）
   const cfg = {
     rowSelector: 'table tr',
-    scoreInput: "input[type='text'], input:not([type])",
+    scoreInput: "input[type='text'], input[type='number'], input[type='tel'], input:not([type])",
     studentIdRegex: '[A-Za-z]?\\d{6,}',
   };
-  const [r] = await chrome.scripting.executeScript({
-    target: { tabId: tab.id }, world: 'MAIN', func: pageFill, args: [{ scoreMap: data.scoreMap, cfg }],
+  // 正規化查表：normalize(DB 學號) -> 原始學號（只供比對，不改 DB 值）
+  const normMap = {};
+  for (const k of Object.keys(data.scoreMap)) normMap[normId(k)] = k;
+
+  // 等 grid render：輪詢任一 frame 是否已出現「含分數輸入框的列」，最多約 5 次×400ms。
+  for (let i = 0; i < 5; i++) {
+    const probe = await chrome.scripting
+      .executeScript({ target: { tabId: tab.id, allFrames: true }, world: 'MAIN', func: pageProbe, args: [cfg] })
+      .catch(() => []);
+    if (probe.some((p) => p && p.result)) break;
+    await sleep(400);
+  }
+
+  // allFrames 注入：portalx 成績表可能在 iframe 內，逐 frame 各跑一次再匯總。
+  const results = await chrome.scripting.executeScript({
+    target: { tabId: tab.id, allFrames: true },
+    world: 'MAIN',
+    func: pageFill,
+    args: [{ scoreMap: data.scoreMap, normMap, cfg }],
   });
-  const stats = r ? r.result : null;
+
+  const filledSet = new Set();
+  const pageIdSet = new Set();
+  let rowsScanned = 0, rowsWithInput = 0, framesScanned = 0;
+  for (const r of results) {
+    if (!r || !r.result) continue;
+    framesScanned++;
+    for (const f of r.result.filled) filledSet.add(f);
+    for (const p of r.result.pageIds) pageIdSet.add(p);
+    rowsScanned += r.result.rowsScanned || 0;
+    rowsWithInput += r.result.rowsWithInput || 0;
+  }
+  const stats = {
+    filled: [...filledSet],
+    missing: Object.keys(data.scoreMap).filter((s) => !filledSet.has(s)),
+    pageIdsSample: [...pageIdSet].slice(0, 15),
+    rowsScanned,
+    rowsWithInput,
+    framesScanned,
+  };
+
+  // 單次防呆 alert（只在頂層 frame 跳一次）
+  await chrome.scripting
+    .executeScript({ target: { tabId: tab.id }, world: 'MAIN', func: pageAlert, args: [stats] })
+    .catch(() => {});
+
   return { ok: true, gradeItemName: data.gradeItemName, count: data.count, stats };
 }
 
